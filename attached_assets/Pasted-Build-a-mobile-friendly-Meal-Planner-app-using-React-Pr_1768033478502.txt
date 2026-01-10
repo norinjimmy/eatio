@@ -1,0 +1,125 @@
+Build a mobile-friendly Meal Planner app using React.
+
+Primary goals:
+- The app should work well on phones (responsive design).
+- Default language: Swedish.
+- Optional language toggle: English.
+- No login required.
+- Data stored locally (LocalStorage).
+- Simple, clean, family-friendly UI.
+
+Core features:
+
+1. Weekly Meal Plan
+- Show a weekly view (Monday–Sunday).
+- Each day has:
+  - Lunch
+  - Dinner
+- Users can:
+  - Add meals
+  - Edit meals
+  - Delete meals
+  - Move meals between days or between lunch/dinner
+- Prevent duplicate meals when moving.
+
+2. Meal Management
+- Meals consist of:
+  - Name
+  - Optional notes (e.g. “kids favorite”, “quick recipe”)
+- Support:
+  - Add
+  - Edit
+  - Delete
+  - Move
+
+3. Recipe Section
+- Users can save recipes.
+- Each recipe has:
+  - Name
+  - Ingredients
+  - Instructions
+- Recipes can be added to the weekly plan.
+- Recipes can be marked as favorites.
+- Top 10 most used recipes list.
+
+4. Grocery List
+- Automatically generate a grocery list from the weekly meal plan.
+- Users can:
+  - Add custom items
+  - Remove items
+  - Mark items as “bought”
+- Grocery list should persist locally.
+
+5. Tabs / Navigation
+App should have bottom navigation tabs:
+- Home
+- Weekly Plan
+- Recipes
+- Grocery List
+- Favorites / Top 10
+
+6. Language Support (SV / EN)
+All UI text should support:
+- Swedish (default)
+- English (toggle button)
+
+Example translations:
+
+Swedish:
+- Veckoplan
+- Lägg till måltid
+- Lunch
+- Middag
+- Recept
+- Inköpslista
+- Favoriter
+- Ta bort
+- Redigera
+- Flytta
+
+English:
+- Weekly Plan
+- Add Meal
+- Lunch
+- Dinner
+- Recipes
+- Grocery List
+- Favorites
+- Delete
+- Edit
+- Move
+
+Use a simple translation object for language switching.
+
+7. UX Requirements
+- Optimized for one-handed phone use.
+- Clear buttons.
+- No clutter.
+- Family-friendly design.
+- Fast interaction.
+
+8. Technical Requirements
+- Use React (functional components).
+- Use Context API for meal state.
+- Avoid duplicate state bugs when moving meals.
+- Clean, readable code structure.
+
+9. Future Mobile Deployment
+Structure the app so it can later be wrapped in:
+- Expo (React Native)
+- Android App
+- iOS App
+- App Store / Play Store ready
+
+10. Optional Enhancements
+- Dark mode
+- Meal history
+- Weekly reset button
+- Share grocery list
+
+Output:
+- Provide the full working React app code.
+- Include language system.
+- Include navigation.
+- Include local storage.
+- Make it mobile responsive.
