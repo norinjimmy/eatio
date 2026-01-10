@@ -3,12 +3,13 @@ import Layout from "@/components/Layout";
 import { useTranslation } from "@/lib/i18n";
 import { useStore, Meal } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, X, Utensils, Coffee, ArrowRightLeft } from "lucide-react";
+import { Plus, X, Utensils, Coffee, Move } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -22,6 +23,11 @@ export default function WeeklyPlan() {
   const [activeType, setActiveType] = useState<'lunch' | 'dinner'>("lunch");
   const [newMealName, setNewMealName] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>("");
+
+  const [isMoveOpen, setIsMoveOpen] = useState(false);
+  const [mealToMove, setMealToMove] = useState<Meal | null>(null);
+  const [moveTargetDay, setMoveTargetDay] = useState<string>("");
+  const [moveTargetType, setMoveTargetType] = useState<'lunch' | 'dinner'>("lunch");
 
   const handleAddMeal = () => {
     if (!newMealName && !selectedRecipeId) return;
@@ -43,6 +49,16 @@ export default function WeeklyPlan() {
     setSelectedRecipeId("");
     setIsAddOpen(false);
     toast({ title: "Meal added", description: `${name} added to ${activeDay} ${activeType}` });
+  };
+
+  const handleMoveMeal = () => {
+    if (!mealToMove || !moveTargetDay) return;
+    
+    moveMeal(mealToMove.id, moveTargetDay, moveTargetType);
+    
+    setIsMoveOpen(false);
+    setMealToMove(null);
+    toast({ title: "Meal moved", description: `Moved to ${moveTargetDay} ${moveTargetType}` });
   };
 
   const getMealsForDay = (day: string) => ({
@@ -87,7 +103,17 @@ export default function WeeklyPlan() {
                   ) : (
                     <div className="space-y-2">
                       {dayMeals.lunch.map(meal => (
-                        <MealItem key={meal.id} meal={meal} onDelete={() => deleteMeal(meal.id)} />
+                        <MealItem 
+                          key={meal.id} 
+                          meal={meal} 
+                          onDelete={() => deleteMeal(meal.id)} 
+                          onMove={() => {
+                            setMealToMove(meal);
+                            setMoveTargetDay(meal.day);
+                            setMoveTargetType(meal.type);
+                            setIsMoveOpen(true);
+                          }}
+                        />
                       ))}
                     </div>
                   )}
@@ -111,7 +137,17 @@ export default function WeeklyPlan() {
                   ) : (
                     <div className="space-y-2">
                       {dayMeals.dinner.map(meal => (
-                        <MealItem key={meal.id} meal={meal} onDelete={() => deleteMeal(meal.id)} />
+                        <MealItem 
+                          key={meal.id} 
+                          meal={meal} 
+                          onDelete={() => deleteMeal(meal.id)} 
+                          onMove={() => {
+                            setMealToMove(meal);
+                            setMoveTargetDay(meal.day);
+                            setMoveTargetType(meal.type);
+                            setIsMoveOpen(true);
+                          }}
+                        />
                       ))}
                     </div>
                   )}
@@ -165,17 +201,57 @@ export default function WeeklyPlan() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Move Meal Dialog */}
+      <Dialog open={isMoveOpen} onOpenChange={setIsMoveOpen}>
+        <DialogContent className="rounded-2xl w-[90%] max-w-sm sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("move")} {mealToMove?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>{t("monday")}</Label>
+              <Select value={moveTargetDay} onValueChange={setMoveTargetDay}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAYS.map(d => (
+                    <SelectItem key={d} value={d}>{t(d.toLowerCase() as any)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("lunch")}</Label>
+              <Select value={moveTargetType} onValueChange={(v: any) => setMoveTargetType(v)}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lunch">{t("lunch")}</SelectItem>
+                  <SelectItem value="dinner">{t("dinner")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setIsMoveOpen(false)} className="rounded-xl">{t("cancel")}</Button>
+            <Button onClick={handleMoveMeal} className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">{t("move")}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
 
-function MealItem({ meal, onDelete }: { meal: Meal; onDelete: () => void }) {
+function MealItem({ meal, onDelete, onMove }: { meal: Meal; onDelete: () => void; onMove: () => void }) {
   const { recipes } = useStore();
   const recipe = meal.recipeId ? recipes.find(r => r.id === meal.recipeId) : null;
 
   return (
     <div className="group flex items-center justify-between bg-muted/30 rounded-xl p-3 hover:bg-muted/60 transition-colors">
-      <div className="flex-1">
+      <div className="flex-1 cursor-pointer" onClick={onMove}>
         <div className="font-medium text-sm text-foreground">{meal.name}</div>
         {recipe && (
           <div className="text-[10px] text-muted-foreground bg-background/50 inline-block px-1.5 rounded-sm mt-0.5">
@@ -183,14 +259,24 @@ function MealItem({ meal, onDelete }: { meal: Meal; onDelete: () => void }) {
           </div>
         )}
       </div>
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <X size={16} />
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={(e) => { e.stopPropagation(); onMove(); }}
+          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+        >
+          <Move size={14} />
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+        >
+          <X size={16} />
+        </Button>
+      </div>
     </div>
   );
 }
