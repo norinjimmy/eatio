@@ -24,6 +24,9 @@ export interface Meal {
 export interface GroceryItem {
   id: string;
   name: string;
+  amount?: number;
+  unit?: string;
+  note?: string;
   isBought: boolean;
   isCustom: boolean;
   sourceMeal?: string;
@@ -42,6 +45,7 @@ interface StoreContextType {
   deleteMeal: (id: string) => void;
   moveMeal: (id: string, newDay: string, newType: 'lunch' | 'dinner') => void;
   addGroceryItem: (name: string) => void;
+  addIngredientsToGrocery: (ingredients: string[]) => void;
   toggleGroceryItem: (id: string) => void;
   deleteGroceryItem: (id: string) => void;
   clearBoughtItems: () => void;
@@ -163,6 +167,61 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setGroceryItems(prev => prev.filter(i => i.id !== id));
   };
 
+  const addIngredientsToGrocery = (ingredients: string[]) => {
+    setGroceryItems(prev => {
+      let newList = [...prev];
+      
+      ingredients.forEach(rawIng => {
+        // Parse ingredient: "Milk 1 L" -> { name: "milk", amount: 1, unit: "L" }
+        // Very basic parser for now: "Name [Amount] [Unit]"
+        const parts = rawIng.trim().split(/\s+/);
+        let name = parts[0].toLowerCase().replace(/er$/, ''); // Basic singularization
+        let amount: number | undefined;
+        let unit: string | undefined;
+
+        if (parts.length > 1) {
+          const possibleAmount = parseFloat(parts[1]);
+          if (!isNaN(possibleAmount)) {
+            amount = possibleAmount;
+            unit = parts.slice(2).join(' ');
+          } else {
+            name = parts.join(' ').toLowerCase().replace(/er$/, '');
+          }
+        }
+
+        const existingIndex = newList.findIndex(item => 
+          item.name.toLowerCase().replace(/er$/, '') === name && !item.isBought
+        );
+
+        if (existingIndex > -1) {
+          const existing = newList[existingIndex];
+          if (amount && existing.amount && existing.unit === unit) {
+            newList[existingIndex] = {
+              ...existing,
+              amount: existing.amount + amount
+            };
+          } else {
+            newList[existingIndex] = {
+              ...existing,
+              note: existing.note ? `${existing.note}, check quantity` : "check quantity"
+            };
+          }
+        } else {
+          newList.push({
+            id: uuidv4(),
+            name: rawIng, // Keep original for display but check logic uses normalized
+            amount,
+            unit,
+            isBought: false,
+            isCustom: false
+          });
+        }
+      });
+
+      return newList;
+    });
+  };
+
   const clearBoughtItems = () => {
     setGroceryItems(prev => prev.filter(i => !i.isBought));
   };
@@ -203,7 +262,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       recipes, meals, groceryItems,
       addRecipe, updateRecipe, deleteRecipe, toggleFavorite,
       addMeal, updateMeal, deleteMeal, moveMeal,
-      addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, regenerateGroceryList
+      addGroceryItem, addIngredientsToGrocery, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, regenerateGroceryList
     }}>
       {children}
     </StoreContext.Provider>

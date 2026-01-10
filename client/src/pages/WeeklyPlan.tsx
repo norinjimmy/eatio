@@ -15,7 +15,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 export default function WeeklyPlan() {
   const { t } = useTranslation();
-  const { meals, addMeal, deleteMeal, moveMeal, recipes } = useStore();
+  const { meals, addMeal, deleteMeal, moveMeal, recipes, addIngredientsToGrocery } = useStore();
   const { toast } = useToast();
   
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -23,6 +23,9 @@ export default function WeeklyPlan() {
   const [activeType, setActiveType] = useState<'lunch' | 'dinner'>("lunch");
   const [newMealName, setNewMealName] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>("");
+
+  const [isIngredientConfirmOpen, setIsIngredientConfirmOpen] = useState(false);
+  const [pendingIngredients, setPendingIngredients] = useState<string[]>([]);
 
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [mealToMove, setMealToMove] = useState<Meal | null>(null);
@@ -48,6 +51,15 @@ export default function WeeklyPlan() {
     setNewMealName("");
     setSelectedRecipeId("");
     setIsAddOpen(false);
+    
+    if (selectedRecipeId) {
+      const r = recipes.find(rc => rc.id === selectedRecipeId);
+      if (r && r.ingredients.length > 0) {
+        setPendingIngredients(r.ingredients);
+        setIsIngredientConfirmOpen(true);
+      }
+    }
+    
     toast({ title: "Meal added", description: `${name} added to ${activeDay} ${activeType}` });
   };
 
@@ -198,6 +210,30 @@ export default function WeeklyPlan() {
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setIsAddOpen(false)} className="rounded-xl">{t("cancel")}</Button>
             <Button onClick={handleAddMeal} className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">{t("save")}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ingredient Confirmation Dialog */}
+      <Dialog open={isIngredientConfirmOpen} onOpenChange={setIsIngredientConfirmOpen}>
+        <DialogContent className="rounded-2xl w-[90%] max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t("addIngredientsToGrocery")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-4">
+            <Button 
+              onClick={() => {
+                addIngredientsToGrocery(pendingIngredients);
+                setIsIngredientConfirmOpen(false);
+                toast({ title: "Grocery list updated", description: `${pendingIngredients.length} ingredients added.` });
+              }}
+              className="rounded-xl bg-primary text-primary-foreground"
+            >
+              {t("yesAdd")}
+            </Button>
+            <Button variant="outline" onClick={() => setIsIngredientConfirmOpen(false)} className="rounded-xl">
+              {t("no")}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

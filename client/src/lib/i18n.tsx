@@ -61,6 +61,9 @@ type Translations = {
     customItem: string;
     noItems: string;
     generatedFromPlan: string;
+    addIngredientsToGrocery: string;
+    yesAdd: string;
+    no: string;
   };
 };
 
@@ -112,6 +115,9 @@ const translations: Translations = {
     customItem: "Egen vara",
     noItems: "Listan är tom!",
     generatedFromPlan: "Från matplan",
+    addIngredientsToGrocery: "Vill du lägga till ingredienserna i inköpslistan?",
+    yesAdd: "Ja, lägg till",
+    no: "Nej",
   },
   en: {
     home: "Home",
@@ -160,6 +166,9 @@ const translations: Translations = {
     customItem: "Custom Item",
     noItems: "List is empty!",
     generatedFromPlan: "From Meal Plan",
+    addIngredientsToGrocery: "Do you want to add the ingredients to the grocery list?",
+    yesAdd: "Yes, add",
+    no: "No",
   }
 };
 
