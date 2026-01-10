@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Heart, Search, Plus, ChefHat, Trash2, Edit2 } from "lucide-react";
+import { Heart, Search, Plus, ChefHat, Trash2, Edit2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,6 +21,7 @@ export default function Recipes() {
   
   // Form State
   const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [instructions, setInstructions] = useState("");
 
@@ -32,10 +33,12 @@ export default function Recipes() {
     if (!name) return;
     addRecipe({
       name,
+      url,
       ingredients: ingredients.split('\n').filter(i => i.trim()),
       instructions
     });
     setName("");
+    setUrl("");
     setIngredients("");
     setInstructions("");
     setIsCreateOpen(false);
@@ -99,6 +102,15 @@ export default function Recipes() {
               />
             </div>
             <div className="space-y-2">
+              <Label>{t("recipeUrl")}</Label>
+              <Input 
+                value={url} 
+                onChange={(e) => setUrl(e.target.value)}
+                className="rounded-xl"
+                placeholder="https://..."
+              />
+            </div>
+            <div className="space-y-2">
               <Label>{t("ingredients")}</Label>
               <Textarea 
                 value={ingredients}
@@ -135,7 +147,21 @@ function RecipeCard({ recipe, onToggleFav, onDelete }: { recipe: Recipe; onToggl
       <div className="p-4 flex items-start justify-between">
         <div onClick={() => setIsOpen(!isOpen)} className="flex-1 cursor-pointer">
           <h3 className="font-bold text-lg leading-tight mb-1 group-hover:text-primary transition-colors">{recipe.name}</h3>
-          <p className="text-xs text-muted-foreground">{recipe.ingredients.length} ingredients</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">{recipe.ingredients.length} ingredients</p>
+            {recipe.url && (
+              <a 
+                href={recipe.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <ExternalLink size={12} />
+                Link
+              </a>
+            )}
+          </div>
         </div>
         <button 
           onClick={onToggleFav}

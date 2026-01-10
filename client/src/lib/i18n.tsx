@@ -46,6 +46,7 @@ type Translations = {
     
     // Recipes
     recipeName: string;
+    recipeUrl: string;
     ingredients: string;
     instructions: string;
     noRecipes: string;
@@ -98,6 +99,7 @@ const translations: Translations = {
     saturday: "Lördag",
     sunday: "Söndag",
     recipeName: "Receptnamn",
+    recipeUrl: "Webblänk (valfritt)",
     ingredients: "Ingredienser (en per rad)",
     instructions: "Instruktioner",
     noRecipes: "Inga recept än. Skapa ett!",
@@ -145,6 +147,7 @@ const translations: Translations = {
     saturday: "Saturday",
     sunday: "Sunday",
     recipeName: "Recipe Name",
+    recipeUrl: "Recipe URL (optional)",
     ingredients: "Ingredients (one per line)",
     instructions: "Instructions",
     noRecipes: "No recipes yet. Create one!",

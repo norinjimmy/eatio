@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface Recipe {
   id: string;
   name: string;
+  url?: string;
   ingredients: string[];
   instructions: string;
   isFavorite: boolean;
