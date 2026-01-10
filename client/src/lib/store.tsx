@@ -173,34 +173,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       
       ingredients.forEach(rawIng => {
         // Parse ingredient: "Milk 1 L" -> { name: "milk", amount: 1, unit: "L" }
-        // Very basic parser for now: "Name [Amount] [Unit]"
-        const parts = rawIng.trim().split(/\s+/);
-        let name = parts[0].toLowerCase().replace(/er$/, ''); // Basic singularization
+        // We need to handle Swedish ingredients better too
+        // "Mjöl 3dl" -> parts: ["Mjöl", "3dl"]
+        const trimmedIng = rawIng.trim();
+        let name = "";
         let amount: number | undefined;
         let unit: string | undefined;
 
-        if (parts.length > 1) {
-          const possibleAmount = parseFloat(parts[1]);
-          if (!isNaN(possibleAmount)) {
-            amount = possibleAmount;
-            unit = parts.slice(2).join(' ');
-          } else {
-            name = parts.join(' ').toLowerCase().replace(/er$/, '');
-          }
+        // Try to find a number in the string
+        const match = trimmedIng.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*(.*)$/) || trimmedIng.match(/^(.+?)(\d+(?:\.\d+)?)\s*(.*)$/);
+        
+        if (match) {
+          name = match[1].trim().toLowerCase();
+          amount = parseFloat(match[2]);
+          unit = match[3].trim().toLowerCase();
+        } else {
+          name = trimmedIng.toLowerCase();
         }
 
-        const existingIndex = newList.findIndex(item => 
-          item.name.toLowerCase().replace(/er$/, '') === name && !item.isBought
-        );
+        // Normalization: remove plural 'er' or 'ar' and 's' at the end for basic matching
+        const normalize = (s: string) => s.replace(/(er|ar|s)$/, '').trim();
+        const normalizedName = normalize(name);
+
+        const existingIndex = newList.findIndex(item => {
+          if (item.isBought) return false;
+          const itemNameMatch = item.name.toLowerCase().match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*(.*)$/) || item.name.toLowerCase().match(/^(.+?)(\d+(?:\.\d+)?)\s*(.*)$/);
+          const existingBaseName = itemNameMatch ? itemNameMatch[1].trim() : item.name.toLowerCase();
+          return normalize(existingBaseName) === normalizedName;
+        });
 
         if (existingIndex > -1) {
           const existing = newList[existingIndex];
-          if (amount && existing.amount && existing.unit === unit) {
+          // If both have amounts and same unit, merge
+          if (amount && existing.amount && (existing.unit || "") === (unit || "")) {
+            const newAmount = existing.amount + amount;
+            const newUnit = unit || existing.unit || "";
             newList[existingIndex] = {
               ...existing,
-              amount: existing.amount + amount
+              amount: newAmount,
+              name: `${name.charAt(0).toUpperCase() + name.slice(1)} ${newAmount}${newUnit ? " " + newUnit : ""}`
             };
+          } else if (!amount && !existing.amount) {
+            // Both are just names, already matched
           } else {
+            // Conflict in units or missing amounts, just add a note
             newList[existingIndex] = {
               ...existing,
               note: existing.note ? `${existing.note}, check quantity` : "check quantity"
@@ -209,7 +225,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         } else {
           newList.push({
             id: uuidv4(),
-            name: rawIng, // Keep original for display but check logic uses normalized
+            name: rawIng,
             amount,
             unit,
             isBought: false,
