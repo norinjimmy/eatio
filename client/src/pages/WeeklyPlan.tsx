@@ -78,17 +78,57 @@ export default function WeeklyPlan() {
     dinner: meals.filter(m => m.day === day && m.type === "dinner"),
   });
 
+  const topRecipes = [...recipes].sort((a, b) => b.usageCount - a.usageCount).slice(0, 10);
+
+  const handleAddRecipeToPlan = (recipe: Recipe) => {
+    setActiveDay("Monday"); // Default or we could let user choose, but for now just open add with this pre-selected
+    setSelectedRecipeId(recipe.id);
+    setNewMealName(recipe.name);
+    setIsAddOpen(true);
+  };
+
   return (
     <Layout>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-display font-bold">{t("weeklyPlan")}</h2>
-        <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
-          <Plus size={18} className="mr-1" /> {t("add")}
-        </Button>
-      </div>
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Top 10 Recipes Sidebar - Hidden on mobile, visible on desktop */}
+        <aside className="hidden lg:block w-64 shrink-0">
+          <div className="sticky top-24 space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <Utensils className="text-primary" size={20} />
+              Topp 10 Recept
+            </h3>
+            <div className="space-y-2">
+              {topRecipes.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">Inga recept än</p>
+              ) : (
+                topRecipes.map((recipe, index) => (
+                  <Card key={recipe.id} className="hover-elevate cursor-pointer border-none shadow-sm bg-card/50" onClick={() => handleAddRecipeToPlan(recipe)}>
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="flex-none w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{recipe.name}</div>
+                        <div className="text-[10px] text-muted-foreground">{recipe.usageCount} användningar</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        </aside>
 
-      <div className="space-y-6 pb-8">
-        {DAYS.map((day) => {
+        <div className="flex-1">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-display font-bold">{t("weeklyPlan")}</h2>
+            <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
+              <Plus size={18} className="mr-1" /> {t("add")}
+            </Button>
+          </div>
+
+          <div className="space-y-6 pb-8">
+            {DAYS.map((day) => {
           const dayMeals = getMealsForDay(day);
           const dayLabel = t(day.toLowerCase() as any);
           
