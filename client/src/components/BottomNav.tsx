@@ -12,6 +12,7 @@ export default function BottomNav() {
     { path: "/plan", icon: Calendar, label: t("weeklyPlan") },
     { path: "/recipes", icon: BookOpen, label: t("recipes") },
     { path: "/grocery", icon: ShoppingCart, label: t("groceryList") },
+    { path: "/favorites", icon: Heart, label: t("favorites") },
     { path: "/settings", icon: Settings, label: t("settings") },
   ];
 
