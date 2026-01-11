@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Calendar, BookOpen, ShoppingCart, Heart } from "lucide-react";
+import { Home, Calendar, BookOpen, ShoppingCart, Heart, Settings } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ export default function BottomNav() {
     { path: "/plan", icon: Calendar, label: t("weeklyPlan") },
     { path: "/recipes", icon: BookOpen, label: t("recipes") },
     { path: "/grocery", icon: ShoppingCart, label: t("groceryList") },
-    { path: "/favorites", icon: Heart, label: t("favorites") },
+    { path: "/settings", icon: Settings, label: t("settings") },
   ];
 
   return (

@@ -9,6 +9,7 @@ import WeeklyPlan from "@/pages/WeeklyPlan";
 import Recipes from "@/pages/Recipes";
 import GroceryList from "@/pages/GroceryList";
 import Favorites from "@/pages/Favorites";
+import SettingsPage from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/recipes" component={Recipes} />
       <Route path="/grocery" component={GroceryList} />
       <Route path="/favorites" component={Favorites} />
+      <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>
   );

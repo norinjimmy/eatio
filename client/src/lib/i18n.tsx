@@ -65,6 +65,9 @@ type Translations = {
     yesAdd: string;
     no: string;
     plannedDays: string;
+    settings: string;
+    workDays: string;
+    workDaysDesc: string;
   };
 };
 
@@ -120,6 +123,9 @@ const translations: Translations = {
     yesAdd: "Ja, lägg till",
     no: "Nej",
     plannedDays: "dagar planerade",
+    settings: "Inställningar",
+    workDays: "Arbetsdagar",
+    workDaysDesc: "Välj dagar du jobbar dagtid och äter lunch på jobbet.",
   },
   en: {
     home: "Home",
@@ -172,6 +178,9 @@ const translations: Translations = {
     yesAdd: "Yes, add",
     no: "No",
     plannedDays: "days planned",
+    settings: "Settings",
+    workDays: "Work Days",
+    workDaysDesc: "Select days you work daytime and eat lunch at work.",
   }
 };
 
