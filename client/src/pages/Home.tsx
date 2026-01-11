@@ -43,24 +43,40 @@ export default function Home() {
 
         {/* Current Day Meals */}
         <div className="grid grid-cols-1 gap-4">
-          <Card className="border-none shadow-sm bg-card overflow-hidden">
+          <Card className="border-none shadow-md bg-card overflow-hidden">
             <CardContent className="p-0">
-              <div className="flex divide-x divide-border/40">
-                <div className="flex-1 p-4">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mb-1 flex items-center gap-1">
-                    <Utensils size={10} className="text-primary" /> {t("lunch")}
+              <div className="flex flex-col divide-y divide-border/40">
+                <div className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                      <Utensils size={24} />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                        {t("lunch")}
+                      </div>
+                      <div className="font-bold text-lg text-foreground">
+                        {lunch ? lunch.name : <span className="text-muted-foreground/30 italic font-normal">Inget planerat</span>}
+                      </div>
+                    </div>
                   </div>
-                  <div className="font-medium text-sm truncate">
-                    {lunch ? lunch.name : <span className="text-muted-foreground/40 italic">Inget planerat</span>}
-                  </div>
+                  <ArrowRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
                 </div>
-                <div className="flex-1 p-4">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mb-1 flex items-center gap-1">
-                    <Utensils size={10} className="text-primary" /> {t("dinner")}
+                <div className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600">
+                      <Utensils size={24} />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                        {t("dinner")}
+                      </div>
+                      <div className="font-bold text-lg text-foreground">
+                        {dinner ? dinner.name : <span className="text-muted-foreground/30 italic font-normal">Inget planerat</span>}
+                      </div>
+                    </div>
                   </div>
-                  <div className="font-medium text-sm truncate">
-                    {dinner ? dinner.name : <span className="text-muted-foreground/40 italic">Inget planerat</span>}
-                  </div>
+                  <ArrowRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
                 </div>
               </div>
             </CardContent>
