@@ -9,10 +9,16 @@ export default function Home() {
   const { t } = useTranslation();
   const { meals, recipes, groceryItems } = useStore();
 
+  const [workDays] = useState<string[]>(() => {
+    const saved = localStorage.getItem('app-work-days');
+    return saved ? JSON.parse(saved) : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  });
+
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   const todaysMealsList = meals.filter(m => m.day === today);
   const lunch = todaysMealsList.find(m => m.type === 'lunch');
   const dinner = todaysMealsList.find(m => m.type === 'dinner');
+  const isWorkDay = workDays.includes(today);
 
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const plannedDaysCount = DAYS.filter(day => 
@@ -46,22 +52,24 @@ export default function Home() {
           <Card className="border-none shadow-md bg-card overflow-hidden">
             <CardContent className="p-0">
               <div className="flex flex-col divide-y divide-border/40">
-                <div className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                      <Utensils size={24} />
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
-                        {t("lunch")}
+                {!isWorkDay && (
+                  <div className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                        <Utensils size={24} />
                       </div>
-                      <div className="font-bold text-lg text-foreground">
-                        {lunch ? lunch.name : <span className="text-muted-foreground/30 italic font-normal">Inget planerat</span>}
+                      <div>
+                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                          {t("lunch")}
+                        </div>
+                        <div className="font-bold text-lg text-foreground">
+                          {lunch ? lunch.name : <span className="text-muted-foreground/30 italic font-normal">Inget planerat</span>}
+                        </div>
                       </div>
                     </div>
+                    <ArrowRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
                   </div>
-                  <ArrowRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
-                </div>
+                )}
                 <div className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600">

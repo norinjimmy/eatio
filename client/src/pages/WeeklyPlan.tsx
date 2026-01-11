@@ -78,6 +78,11 @@ export default function WeeklyPlan() {
     dinner: meals.filter(m => m.day === day && m.type === "dinner"),
   });
 
+  const [workDays] = useState<string[]>(() => {
+    const saved = localStorage.getItem('app-work-days');
+    return saved ? JSON.parse(saved) : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  });
+
   return (
     <Layout>
       <div className="mb-6 flex items-center justify-between">
@@ -91,6 +96,7 @@ export default function WeeklyPlan() {
         {DAYS.map((day) => {
           const dayMeals = getMealsForDay(day);
           const dayLabel = t(day.toLowerCase() as any);
+          const isWorkDay = workDays.includes(day);
           
           return (
             <div key={day} className="bg-card rounded-2xl p-4 shadow-sm border border-border/60">
@@ -101,38 +107,40 @@ export default function WeeklyPlan() {
 
               <div className="space-y-3">
                 {/* Lunch Section */}
-                <div className="relative">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <Coffee size={12} /> {t("lunch")}
+                {!isWorkDay && (
+                  <div className="relative">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <Coffee size={12} /> {t("lunch")}
+                    </div>
+                    {dayMeals.lunch.length === 0 ? (
+                      <div 
+                        onClick={() => { setActiveDay(day); setActiveType('lunch'); setIsAddOpen(true); }}
+                        className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                      >
+                        {t("addMeal")}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {dayMeals.lunch.map(meal => (
+                          <MealItem 
+                            key={meal.id} 
+                            meal={meal} 
+                            onDelete={() => deleteMeal(meal.id)} 
+                            onMove={() => {
+                              setMealToMove(meal);
+                              setMoveTargetDay(meal.day);
+                              setMoveTargetType(meal.type);
+                              setIsMoveOpen(true);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {dayMeals.lunch.length === 0 ? (
-                    <div 
-                      onClick={() => { setActiveDay(day); setActiveType('lunch'); setIsAddOpen(true); }}
-                      className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                    >
-                      {t("addMeal")}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {dayMeals.lunch.map(meal => (
-                        <MealItem 
-                          key={meal.id} 
-                          meal={meal} 
-                          onDelete={() => deleteMeal(meal.id)} 
-                          onMove={() => {
-                            setMealToMove(meal);
-                            setMoveTargetDay(meal.day);
-                            setMoveTargetType(meal.type);
-                            setIsMoveOpen(true);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
 
-                {/* Divider */}
-                <div className="border-t border-border/40 my-2" />
+                {/* Divider - only show if not a work day (since lunch is hidden on work days) */}
+                {!isWorkDay && <div className="border-t border-border/40 my-2" />}
 
                 {/* Dinner Section */}
                 <div className="relative">
