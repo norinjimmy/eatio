@@ -4,6 +4,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { ArrowRight, Utensils, CalendarDays, ShoppingBag } from "lucide-react";
 import { Link } from "wouter";
+import { useState } from "react";
 
 export default function Home() {
   const { t } = useTranslation();
