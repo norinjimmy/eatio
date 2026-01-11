@@ -1,4 +1,4 @@
-# MealPlanner App
+# Eatio App
 
 ## Overview
 

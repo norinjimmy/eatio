@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import BottomNav from "./BottomNav";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "./ui/button";
+import eatioLogo from "@assets/stock_images/modern_food_fork_spo_4299530a.jpg";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { language, setLanguage } = useTranslation();
@@ -14,9 +15,12 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground pb-24">
       {/* Top Bar for Mobile */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold font-display bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-          MealPlanner
-        </h1>
+        <div className="flex items-center gap-2">
+          <img src={eatioLogo} alt="Eatio Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
+          <h1 className="text-xl font-bold font-display bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Eatio
+          </h1>
+        </div>
         <Button 
           variant="ghost" 
           size="sm" 
