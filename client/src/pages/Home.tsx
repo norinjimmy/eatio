@@ -10,9 +10,10 @@ export default function Home() {
   const { meals, recipes, groceryItems } = useStore();
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-  // Map JS Date weekday to our simple string days if possible, or just default to Monday for demo
-  // In a real app we'd map this properly. Let's assume user manages "Monday" manually.
-  
+  const todaysMealsList = meals.filter(m => m.day === today);
+  const lunch = todaysMealsList.find(m => m.type === 'lunch');
+  const dinner = todaysMealsList.find(m => m.type === 'dinner');
+
   const totalRecipes = recipes.length;
   const itemsToBuy = groceryItems.filter(i => !i.isBought).length;
 
@@ -33,6 +34,32 @@ export default function Home() {
           <p className="text-muted-foreground">
             {t("todaysMeals")}
           </p>
+        </div>
+
+        {/* Current Day Meals */}
+        <div className="grid grid-cols-1 gap-4">
+          <Card className="border-none shadow-sm bg-card overflow-hidden">
+            <CardContent className="p-0">
+              <div className="flex divide-x divide-border/40">
+                <div className="flex-1 p-4">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mb-1 flex items-center gap-1">
+                    <Utensils size={10} className="text-primary" /> {t("lunch")}
+                  </div>
+                  <div className="font-medium text-sm truncate">
+                    {lunch ? lunch.name : <span className="text-muted-foreground/40 italic">Inget planerat</span>}
+                  </div>
+                </div>
+                <div className="flex-1 p-4">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mb-1 flex items-center gap-1">
+                    <Utensils size={10} className="text-primary" /> {t("dinner")}
+                  </div>
+                  <div className="font-medium text-sm truncate">
+                    {dinner ? dinner.name : <span className="text-muted-foreground/40 italic">Inget planerat</span>}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Quick Stats Grid */}
