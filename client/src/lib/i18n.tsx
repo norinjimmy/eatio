@@ -64,6 +64,7 @@ type Translations = {
     addIngredientsToGrocery: string;
     yesAdd: string;
     no: string;
+    plannedDays: string;
   };
 };
 
@@ -118,6 +119,7 @@ const translations: Translations = {
     addIngredientsToGrocery: "Vill du lägga till ingredienserna i inköpslistan?",
     yesAdd: "Ja, lägg till",
     no: "Nej",
+    plannedDays: "dagar planerade",
   },
   en: {
     home: "Home",
@@ -169,6 +171,7 @@ const translations: Translations = {
     addIngredientsToGrocery: "Do you want to add the ingredients to the grocery list?",
     yesAdd: "Yes, add",
     no: "No",
+    plannedDays: "days planned",
   }
 };
 

@@ -14,6 +14,11 @@ export default function Home() {
   const lunch = todaysMealsList.find(m => m.type === 'lunch');
   const dinner = todaysMealsList.find(m => m.type === 'dinner');
 
+  const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const plannedDaysCount = DAYS.filter(day => 
+    meals.some(m => m.day === day)
+  ).length;
+
   const totalRecipes = recipes.length;
   const itemsToBuy = groceryItems.filter(i => !i.isBought).length;
 
@@ -63,6 +68,26 @@ export default function Home() {
         </div>
 
         {/* Quick Stats Grid */}
+        <div className="grid grid-cols-1 gap-4">
+          <Card className="bg-gradient-to-br from-indigo-500/10 to-indigo-500/5 border-none shadow-sm group">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                <CalendarDays size={24} />
+              </div>
+              <div className="flex-1">
+                <div className="text-2xl font-bold text-foreground">{plannedDaysCount}/7</div>
+                <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t("plannedDays")}</div>
+              </div>
+              <div className="h-2 w-24 bg-indigo-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-500 transition-all duration-500" 
+                  style={{ width: `${(plannedDaysCount / 7) * 100}%` }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <Link href="/recipes" className="cursor-pointer">
             <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-none shadow-sm hover:shadow-md transition-all hover:-translate-y-1 group">
@@ -92,26 +117,6 @@ export default function Home() {
             </Card>
           </Link>
         </div>
-
-        {/* CTA Card */}
-        <Card className="overflow-hidden border-2 border-accent/50 shadow-lg">
-          <CardHeader className="bg-accent/30 pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CalendarDays className="text-indigo-500" />
-              {t("weeklyPlan")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-3">
-            <p className="text-sm text-muted-foreground mb-4">
-              Plan your meals ahead to save time and eat healthier.
-            </p>
-            <Link href="/plan">
-              <button className="w-full py-3 bg-foreground text-background rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-foreground/90 transition-colors">
-                {t("weeklyPlan")} <ArrowRight size={16} />
-              </button>
-            </Link>
-          </CardContent>
-        </Card>
       </div>
     </Layout>
   );
