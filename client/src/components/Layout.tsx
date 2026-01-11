@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import BottomNav from "./BottomNav";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "./ui/button";
-import eatioLogo from "@assets/stock_images/modern_food_fork_spo_4299530a.jpg";
+import eatioLogo from "@assets/the-one-on-the-top-left-with-the-fork-an_ikM_tG1FQlKT7lm80e_N_1768160135743.jpeg";
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { language, setLanguage } = useTranslation();
