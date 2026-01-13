@@ -68,6 +68,7 @@ export const weekHistory = pgTable("week_history", {
 
 // Schemas
 export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true, userId: true, usageCount: true });
+export const updateRecipeSchema = createInsertSchema(recipes).omit({ id: true, userId: true });
 export const insertMealSchema = createInsertSchema(meals).omit({ id: true, userId: true });
 export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({ id: true, userId: true });
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true });

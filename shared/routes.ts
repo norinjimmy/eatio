@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertRecipeSchema, insertMealSchema, insertGroceryItemSchema, recipes, meals, groceryItems } from './schema';
+import { insertRecipeSchema, updateRecipeSchema, insertMealSchema, insertGroceryItemSchema, recipes, meals, groceryItems } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -36,7 +36,7 @@ export const api = {
     update: {
       method: 'PATCH' as const,
       path: '/api/recipes/:id',
-      input: insertRecipeSchema.partial(),
+      input: updateRecipeSchema.partial(),
       responses: {
         200: z.custom<typeof recipes.$inferSelect>(),
         404: errorSchemas.notFound,
