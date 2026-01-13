@@ -1,9 +1,9 @@
 import { db } from "./db";
 import {
   recipes, meals, groceryItems, userSettings, mealPlanShares, weekHistory,
-  type Recipe, type InsertRecipe,
-  type Meal, type InsertMeal,
-  type GroceryItem, type InsertGroceryItem,
+  type Recipe, type InsertRecipe, type InsertRecipeWithUser,
+  type Meal, type InsertMeal, type InsertMealWithUser,
+  type GroceryItem, type InsertGroceryItem, type InsertGroceryItemWithUser,
   type UserSettings, type InsertUserSettings,
   type MealPlanShare, type InsertMealPlanShare,
   type WeekHistory, type InsertWeekHistory
@@ -14,14 +14,14 @@ export interface IStorage {
   // Recipes
   getRecipes(userId: string): Promise<Recipe[]>;
   getRecipe(userId: string, id: number): Promise<Recipe | undefined>;
-  createRecipe(recipe: InsertRecipe): Promise<Recipe>;
+  createRecipe(recipe: InsertRecipeWithUser): Promise<Recipe>;
   updateRecipe(userId: string, id: number, updates: Partial<InsertRecipe>): Promise<Recipe>;
   deleteRecipe(userId: string, id: number): Promise<void>;
 
   // Meals
   getMeals(userId: string): Promise<Meal[]>;
   getMeal(userId: string, id: number): Promise<Meal | undefined>;
-  createMeal(meal: InsertMeal): Promise<Meal>;
+  createMeal(meal: InsertMealWithUser): Promise<Meal>;
   updateMeal(userId: string, id: number, updates: Partial<InsertMeal>): Promise<Meal>;
   deleteMeal(userId: string, id: number): Promise<void>;
   deleteAllMeals(userId: string): Promise<void>;
@@ -29,7 +29,7 @@ export interface IStorage {
   // Grocery
   getGroceryItems(userId: string): Promise<GroceryItem[]>;
   getGroceryItem(userId: string, id: number): Promise<GroceryItem | undefined>;
-  createGroceryItem(item: InsertGroceryItem): Promise<GroceryItem>;
+  createGroceryItem(item: InsertGroceryItemWithUser): Promise<GroceryItem>;
   updateGroceryItem(userId: string, id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem>;
   deleteGroceryItem(userId: string, id: number): Promise<void>;
   deleteAllGroceryItems(userId: string): Promise<void>;
@@ -66,7 +66,7 @@ export class DatabaseStorage implements IStorage {
     return recipe;
   }
 
-  async createRecipe(insertRecipe: InsertRecipe): Promise<Recipe> {
+  async createRecipe(insertRecipe: InsertRecipeWithUser): Promise<Recipe> {
     const [recipe] = await db.insert(recipes).values(insertRecipe).returning();
     return recipe;
   }
@@ -92,7 +92,7 @@ export class DatabaseStorage implements IStorage {
     return meal;
   }
 
-  async createMeal(insertMeal: InsertMeal): Promise<Meal> {
+  async createMeal(insertMeal: InsertMealWithUser): Promise<Meal> {
     const [meal] = await db.insert(meals).values(insertMeal).returning();
     return meal;
   }
@@ -122,7 +122,7 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async createGroceryItem(insertItem: InsertGroceryItem): Promise<GroceryItem> {
+  async createGroceryItem(insertItem: InsertGroceryItemWithUser): Promise<GroceryItem> {
     const [item] = await db.insert(groceryItems).values(insertItem).returning();
     return item;
   }

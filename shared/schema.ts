@@ -67,9 +67,9 @@ export const weekHistory = pgTable("week_history", {
 });
 
 // Schemas
-export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true, usageCount: true });
-export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
-export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({ id: true });
+export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true, userId: true, usageCount: true });
+export const insertMealSchema = createInsertSchema(meals).omit({ id: true, userId: true });
+export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({ id: true, userId: true });
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true });
 export const insertMealPlanShareSchema = createInsertSchema(mealPlanShares).omit({ id: true });
 export const insertWeekHistorySchema = createInsertSchema(weekHistory).omit({ id: true });
@@ -77,12 +77,15 @@ export const insertWeekHistorySchema = createInsertSchema(weekHistory).omit({ id
 // Types
 export type Recipe = typeof recipes.$inferSelect;
 export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
+export type InsertRecipeWithUser = InsertRecipe & { userId: string };
 
 export type Meal = typeof meals.$inferSelect;
 export type InsertMeal = z.infer<typeof insertMealSchema>;
+export type InsertMealWithUser = InsertMeal & { userId: string };
 
 export type GroceryItem = typeof groceryItems.$inferSelect;
 export type InsertGroceryItem = z.infer<typeof insertGroceryItemSchema>;
+export type InsertGroceryItemWithUser = InsertGroceryItem & { userId: string };
 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
