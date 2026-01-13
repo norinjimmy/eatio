@@ -4,6 +4,12 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import * as cheerio from "cheerio";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -278,6 +284,73 @@ export async function registerRoutes(
   app.delete(api.grocery.delete.path, async (req, res) => {
     await storage.deleteGroceryItem(Number(req.params.id));
     res.status(204).send();
+  });
+
+  // Scan recipe from photo using AI vision
+  app.post('/api/scan-recipe', async (req, res) => {
+    try {
+      const { image } = req.body;
+      
+      if (!image) {
+        return res.status(400).json({ message: 'Image is required', field: 'image' });
+      }
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Analyze this recipe image and extract the following information in JSON format:
+{
+  "name": "Recipe name",
+  "ingredients": ["ingredient 1", "ingredient 2", ...],
+  "instructions": "Step by step instructions"
+}
+
+Be thorough and include all ingredients you can see. For ingredients, include quantities if visible (e.g., "2 dl mjöl", "500g köttfärs").
+If the recipe is in Swedish, keep the Swedish text. If you cannot read something clearly, make your best guess.
+Only return the JSON, no other text.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`,
+                  detail: 'high'
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 2000,
+      });
+
+      const content = response.choices[0]?.message?.content || '';
+      
+      // Try to parse the JSON from the response
+      let parsed;
+      try {
+        // Remove markdown code blocks if present
+        const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        parsed = JSON.parse(jsonStr);
+      } catch {
+        return res.status(400).json({ 
+          message: 'Could not parse recipe from image', 
+          field: 'image' 
+        });
+      }
+
+      res.json({
+        name: parsed.name || '',
+        ingredients: Array.isArray(parsed.ingredients) ? parsed.ingredients : [],
+        instructions: parsed.instructions || ''
+      });
+    } catch (err) {
+      console.error('Recipe scan error:', err);
+      res.status(500).json({ message: 'Failed to analyze recipe image', field: 'image' });
+    }
   });
 
   return httpServer;

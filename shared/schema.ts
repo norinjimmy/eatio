@@ -49,3 +49,6 @@ export type InsertGroceryItem = z.infer<typeof insertGroceryItemSchema>;
 // Enums for frontend usage
 export const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 export const MEAL_TYPES = ["Lunch", "Dinner"] as const;
+
+// Re-export chat models
+export * from "./models/chat";
