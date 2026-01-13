@@ -55,6 +55,9 @@ export async function registerRoutes(
       const id = Number(req.params.id);
       const input = api.recipes.update.input.parse(req.body);
       const updated = await storage.updateRecipe(userId, id, input);
+      if (!updated) {
+        return res.status(404).json({ message: "Recipe not found" });
+      }
       res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -63,7 +66,7 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      res.status(404).json({ message: "Recipe not found" });
+      throw err;
     }
   });
 
