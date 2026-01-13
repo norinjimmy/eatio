@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, X, Utensils, Coffee, Move } from "lucide-react";
+import { Plus, X, Utensils, Coffee, Move, ArrowLeft, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import type { MealPlanShare } from "@shared/schema";
 
 // Simple fuzzy match - checks if all characters in query appear in order in target
 function fuzzyMatch(query: string, target: string): { match: boolean; score: number } {
@@ -47,6 +49,40 @@ export default function WeeklyPlan() {
   const { t } = useTranslation();
   const { meals, addMeal, deleteMeal, moveMeal, recipes, addIngredientsToGrocery, groceryItems, deleteItemsByMeal, settings } = useStore();
   const { toast } = useToast();
+  
+  // Check if viewing a shared plan
+  const [viewingShare, setViewingShare] = useState<MealPlanShare | null>(() => {
+    const stored = localStorage.getItem('viewing-shared-plan');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  // Fetch shared plan meals if viewing someone else's plan
+  const { data: sharedMeals = [] } = useQuery<Meal[]>({
+    queryKey: ['/api/shares', viewingShare?.id, 'meals'],
+    queryFn: async () => {
+      if (!viewingShare) return [];
+      const res = await fetch(`/api/shares/${viewingShare.id}/meals`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch shared meals');
+      return res.json();
+    },
+    enabled: !!viewingShare,
+  });
+
+  const exitSharedView = () => {
+    localStorage.removeItem('viewing-shared-plan');
+    setViewingShare(null);
+  };
+
+  // Use shared meals or own meals depending on what we're viewing
+  const displayMeals = viewingShare ? sharedMeals : meals;
+  const isReadOnly = !!viewingShare;
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeDay, setActiveDay] = useState<string>("Monday");
@@ -156,9 +192,9 @@ export default function WeeklyPlan() {
   };
 
   const getMealsForDay = (day: string) => ({
-    breakfast: meals.filter(m => m.day === day && m.type === "Breakfast"),
-    lunch: meals.filter(m => m.day === day && m.type === "Lunch"),
-    dinner: meals.filter(m => m.day === day && m.type === "Dinner"),
+    breakfast: displayMeals.filter(m => m.day === day && m.type === "Breakfast"),
+    lunch: displayMeals.filter(m => m.day === day && m.type === "Lunch"),
+    dinner: displayMeals.filter(m => m.day === day && m.type === "Dinner"),
   });
 
   const workDays = settings?.workDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -167,11 +203,28 @@ export default function WeeklyPlan() {
 
   return (
     <Layout>
+      {viewingShare && (
+        <div className="mb-4 p-3 bg-primary/10 rounded-lg flex items-center justify-between" data-testid="shared-plan-banner">
+          <div className="flex items-center gap-2">
+            <Users size={18} className="text-primary" />
+            <span className="text-sm font-medium">
+              {t("viewingPlanOf")} {viewingShare.ownerName || 'Unknown'}
+            </span>
+          </div>
+          <Button size="sm" variant="ghost" onClick={exitSharedView} data-testid="button-exit-shared-view">
+            <ArrowLeft size={16} className="mr-1" />
+            {t("backToMyPlan")}
+          </Button>
+        </div>
+      )}
+
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-2xl font-display font-bold">{t("weeklyPlan")}</h2>
-        <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
-          <Plus size={18} className="mr-1" /> {t("add")}
-        </Button>
+        {!isReadOnly && (
+          <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
+            <Plus size={18} className="mr-1" /> {t("add")}
+          </Button>
+        )}
       </div>
 
       <div className="space-y-6 pb-8">
@@ -199,21 +252,23 @@ export default function WeeklyPlan() {
                       <Coffee size={12} /> {t("breakfast")}
                     </div>
                     {dayMeals.breakfast.length === 0 ? (
-                      <div 
-                        onClick={() => { setActiveDay(day); setActiveType('breakfast'); setIsAddOpen(true); }}
-                        className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                        data-testid={`add-breakfast-${day.toLowerCase()}`}
-                      >
-                        {t("addMeal")}
-                      </div>
+                      !isReadOnly && (
+                        <div 
+                          onClick={() => { setActiveDay(day); setActiveType('breakfast'); setIsAddOpen(true); }}
+                          className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                          data-testid={`add-breakfast-${day.toLowerCase()}`}
+                        >
+                          {t("addMeal")}
+                        </div>
+                      )
                     ) : (
                       <div className="space-y-2">
                         {dayMeals.breakfast.map(meal => (
                           <MealItem 
                             key={meal.id} 
                             meal={meal} 
-                            onDelete={() => handleDeleteMeal(meal)} 
-                            onMove={() => {
+                            onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                            onMove={isReadOnly ? undefined : () => {
                               setMealToMove(meal);
                               setMoveTargetDay(meal.day);
                               setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
@@ -236,21 +291,23 @@ export default function WeeklyPlan() {
                       <Coffee size={12} /> {t("lunch")}
                     </div>
                     {dayMeals.lunch.length === 0 ? (
-                      <div 
-                        onClick={() => { setActiveDay(day); setActiveType('lunch'); setIsAddOpen(true); }}
-                        className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                        data-testid={`add-lunch-${day.toLowerCase()}`}
-                      >
-                        {t("addMeal")}
-                      </div>
+                      !isReadOnly && (
+                        <div 
+                          onClick={() => { setActiveDay(day); setActiveType('lunch'); setIsAddOpen(true); }}
+                          className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                          data-testid={`add-lunch-${day.toLowerCase()}`}
+                        >
+                          {t("addMeal")}
+                        </div>
+                      )
                     ) : (
                       <div className="space-y-2">
                         {dayMeals.lunch.map(meal => (
                           <MealItem 
                             key={meal.id} 
                             meal={meal} 
-                            onDelete={() => handleDeleteMeal(meal)} 
-                            onMove={() => {
+                            onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                            onMove={isReadOnly ? undefined : () => {
                               setMealToMove(meal);
                               setMoveTargetDay(meal.day);
                               setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
@@ -273,21 +330,23 @@ export default function WeeklyPlan() {
                       <Utensils size={12} /> {t("dinner")}
                     </div>
                     {dayMeals.dinner.length === 0 ? (
-                      <div 
-                        onClick={() => { setActiveDay(day); setActiveType('dinner'); setIsAddOpen(true); }}
-                        className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                        data-testid={`add-dinner-${day.toLowerCase()}`}
-                      >
-                        {t("addMeal")}
-                      </div>
+                      !isReadOnly && (
+                        <div 
+                          onClick={() => { setActiveDay(day); setActiveType('dinner'); setIsAddOpen(true); }}
+                          className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                          data-testid={`add-dinner-${day.toLowerCase()}`}
+                        >
+                          {t("addMeal")}
+                        </div>
+                      )
                     ) : (
                       <div className="space-y-2">
                         {dayMeals.dinner.map(meal => (
                           <MealItem 
                             key={meal.id} 
                             meal={meal} 
-                            onDelete={() => handleDeleteMeal(meal)} 
-                            onMove={() => {
+                            onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                            onMove={isReadOnly ? undefined : () => {
                               setMealToMove(meal);
                               setMoveTargetDay(meal.day);
                               setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
@@ -479,13 +538,13 @@ export default function WeeklyPlan() {
   );
 }
 
-function MealItem({ meal, onDelete, onMove }: { meal: Meal; onDelete: () => void; onMove: () => void }) {
+function MealItem({ meal, onDelete, onMove }: { meal: Meal; onDelete?: () => void; onMove?: () => void }) {
   const { recipes } = useStore();
   const recipe = meal.recipeId ? recipes.find(r => r.id === meal.recipeId) : null;
 
   return (
     <div className="group flex items-center justify-between bg-muted/30 rounded-xl p-3 hover:bg-muted/60 transition-colors">
-      <div className="flex-1 cursor-pointer" onClick={onMove}>
+      <div className={cn("flex-1", onMove && "cursor-pointer")} onClick={onMove}>
         <div className="font-medium text-sm text-foreground">{meal.name}</div>
         {recipe && (
           <div className="text-[10px] text-muted-foreground bg-background/50 inline-block px-1.5 rounded-sm mt-0.5">
@@ -493,24 +552,30 @@ function MealItem({ meal, onDelete, onMove }: { meal: Meal; onDelete: () => void
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={(e) => { e.stopPropagation(); onMove(); }}
-          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-        >
-          <Move size={14} />
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-        >
-          <X size={16} />
-        </Button>
-      </div>
+      {(onMove || onDelete) && (
+        <div className="flex items-center gap-1">
+          {onMove && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={(e) => { e.stopPropagation(); onMove(); }}
+              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+            >
+              <Move size={14} />
+            </Button>
+          )}
+          {onDelete && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+            >
+              <X size={16} />
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -498,21 +498,31 @@ Only return the JSON, no other text.`
   });
 
   // Get shared plan meals (for viewing someone else's plan)
+  // Security: Only returns meals if user is an accepted invitee with matching userId/email
   app.get('/api/shares/:shareId/meals', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
       const userEmail = (req.user as any)?.claims?.email || '';
       const shareId = Number(req.params.shareId);
       
-      // Get all shares for this user
+      // Get only accepted shares where this user is the invitee (by userId or email)
+      // This is enforced server-side - getSharesForUser only returns accepted shares
+      // where invitedUserId matches or invitedEmail matches
       const myShares = await storage.getSharesForUser(userId, userEmail);
       const share = myShares.find(s => s.id === shareId);
       
       if (!share) {
+        // Log unauthorized access attempts for security monitoring
+        console.warn(`Unauthorized share access attempt: user=${userId} shareId=${shareId}`);
         return res.status(403).json({ message: 'You do not have access to this plan' });
       }
       
-      // Get the owner's meals
+      // Double-check share status (defense in depth)
+      if (share.status !== 'accepted') {
+        return res.status(403).json({ message: 'Share not yet accepted' });
+      }
+      
+      // Get the owner's meals - safe because we verified authorization above
       const meals = await storage.getMeals(share.ownerId);
       res.json(meals);
     } catch (err) {
