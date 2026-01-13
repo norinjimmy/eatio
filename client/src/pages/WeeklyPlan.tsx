@@ -45,7 +45,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 export default function WeeklyPlan() {
   const { t } = useTranslation();
-  const { meals, addMeal, deleteMeal, moveMeal, recipes, addIngredientsToGrocery } = useStore();
+  const { meals, addMeal, deleteMeal, moveMeal, recipes, addIngredientsToGrocery, groceryItems, deleteItemsByMeal } = useStore();
   const { toast } = useToast();
   
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -64,6 +64,39 @@ export default function WeeklyPlan() {
   
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [mealToDelete, setMealToDelete] = useState<Meal | null>(null);
+  const [hasIngredientsInGrocery, setHasIngredientsInGrocery] = useState(false);
+  
+  const handleDeleteMeal = (meal: Meal) => {
+    // Check if this meal has ingredients in the grocery list
+    const hasIngredients = groceryItems.some(item => item.sourceMeal === meal.name && !item.isBought);
+    
+    if (hasIngredients) {
+      setMealToDelete(meal);
+      setHasIngredientsInGrocery(true);
+      setIsDeleteConfirmOpen(true);
+    } else {
+      // No ingredients in grocery list, just delete
+      deleteMeal(meal.id);
+      toast({ title: t("delete"), description: meal.name });
+    }
+  };
+  
+  const confirmDeleteMeal = (removeIngredients: boolean) => {
+    if (!mealToDelete) return;
+    
+    if (removeIngredients) {
+      deleteItemsByMeal(mealToDelete.name);
+    }
+    
+    deleteMeal(mealToDelete.id);
+    toast({ title: t("delete"), description: mealToDelete.name });
+    
+    setIsDeleteConfirmOpen(false);
+    setMealToDelete(null);
+  };
   
   // Get filtered and sorted recipe suggestions based on input
   const suggestions = useMemo(() => {
@@ -174,7 +207,7 @@ export default function WeeklyPlan() {
                           <MealItem 
                             key={meal.id} 
                             meal={meal} 
-                            onDelete={() => deleteMeal(meal.id)} 
+                            onDelete={() => handleDeleteMeal(meal)} 
                             onMove={() => {
                               setMealToMove(meal);
                               setMoveTargetDay(meal.day);
@@ -209,7 +242,7 @@ export default function WeeklyPlan() {
                         <MealItem 
                           key={meal.id} 
                           meal={meal} 
-                          onDelete={() => deleteMeal(meal.id)} 
+                          onDelete={() => handleDeleteMeal(meal)} 
                           onMove={() => {
                             setMealToMove(meal);
                             setMoveTargetDay(meal.day);
@@ -367,6 +400,32 @@ export default function WeeklyPlan() {
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setIsMoveOpen(false)} className="rounded-xl">{t("cancel")}</Button>
             <Button onClick={handleMoveMeal} className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">{t("move")}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Meal Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="rounded-2xl w-[90%] max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center">{t("removeIngredientsFromGrocery")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-4">
+            <Button 
+              onClick={() => confirmDeleteMeal(true)}
+              className="rounded-xl bg-primary text-primary-foreground"
+              data-testid="button-delete-with-ingredients"
+            >
+              {t("yesAdd")}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => confirmDeleteMeal(false)} 
+              className="rounded-xl"
+              data-testid="button-delete-keep-ingredients"
+            >
+              {t("no")}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

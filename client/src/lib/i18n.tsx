@@ -85,6 +85,7 @@ type Translations = {
     clearByMeal: string;
     confirmClearAll: string;
     itemsCleared: string;
+    removeIngredientsFromGrocery: string;
   };
 };
 
@@ -160,6 +161,7 @@ const translations: Translations = {
     clearByMeal: "Radera per måltid",
     confirmClearAll: "Är du säker på att du vill radera hela inköpslistan?",
     itemsCleared: "Varor raderade",
+    removeIngredientsFromGrocery: "Vill du även ta bort ingredienserna från inköpslistan?",
   },
   en: {
     home: "Home",
@@ -232,6 +234,7 @@ const translations: Translations = {
     clearByMeal: "Clear by meal",
     confirmClearAll: "Are you sure you want to clear the entire grocery list?",
     itemsCleared: "Items cleared",
+    removeIngredientsFromGrocery: "Do you also want to remove the ingredients from the grocery list?",
   }
 };
 
