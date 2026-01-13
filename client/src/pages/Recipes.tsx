@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Heart, Search, Plus, ChefHat, Trash2, Edit2, ExternalLink } from "lucide-react";
+import { Heart, Search, Plus, ChefHat, Trash2, Edit2, ExternalLink, Download, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Recipes() {
   const { t } = useTranslation();
@@ -24,10 +25,41 @@ export default function Recipes() {
   const [url, setUrl] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [isFetching, setIsFetching] = useState(false);
 
   const filteredRecipes = recipes.filter(r => 
     r.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleFetchFromUrl = async () => {
+    if (!url) {
+      toast({ title: t("enterUrl"), variant: "destructive" });
+      return;
+    }
+    
+    setIsFetching(true);
+    try {
+      const response = await apiRequest('POST', '/api/scrape-recipe', { url });
+      const data = await response.json() as { name?: string; ingredients: string[]; instructions?: string };
+      
+      if (data.name) setName(data.name);
+      if (data.ingredients.length > 0) setIngredients(data.ingredients.join('\n'));
+      if (data.instructions) setInstructions(data.instructions);
+      
+      toast({ 
+        title: t("fetchSuccess"), 
+        description: `${data.ingredients.length} ${t("ingredientsFound")}` 
+      });
+    } catch (err) {
+      toast({ 
+        title: t("fetchFailed"), 
+        description: t("couldNotFetchRecipe"),
+        variant: "destructive" 
+      });
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
   const handleCreate = () => {
     if (!name) return;
@@ -103,12 +135,30 @@ export default function Recipes() {
             </div>
             <div className="space-y-2">
               <Label>{t("recipeUrl")}</Label>
-              <Input 
-                value={url} 
-                onChange={(e) => setUrl(e.target.value)}
-                className="rounded-xl"
-                placeholder="https://..."
-              />
+              <div className="flex gap-2">
+                <Input 
+                  value={url} 
+                  onChange={(e) => setUrl(e.target.value)}
+                  className="rounded-xl flex-1"
+                  placeholder="https://..."
+                  data-testid="input-recipe-url"
+                />
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  onClick={handleFetchFromUrl}
+                  disabled={isFetching || !url}
+                  className="rounded-xl shrink-0"
+                  data-testid="button-fetch-recipe"
+                >
+                  {isFetching ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Download size={16} />
+                  )}
+                  <span className="ml-1.5">{t("fetch")}</span>
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>{t("ingredients")}</Label>

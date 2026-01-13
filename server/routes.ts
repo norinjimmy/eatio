@@ -58,12 +58,53 @@ export async function registerRoutes(
     try {
       const { url } = api.scrape.input.parse(req.body);
       
+      // Security: Validate URL protocol and block internal addresses
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        return res.status(400).json({ message: 'Invalid URL', field: 'url' });
+      }
+      
+      // Only allow http/https protocols
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return res.status(400).json({ message: 'Only HTTP/HTTPS URLs are allowed', field: 'url' });
+      }
+      
+      // Block localhost, private IPs, and internal hostnames
+      const hostname = parsedUrl.hostname.toLowerCase();
+      const blockedPatterns = [
+        /^localhost$/i,
+        /^127\./,
+        /^10\./,
+        /^172\.(1[6-9]|2[0-9]|3[01])\./,
+        /^192\.168\./,
+        /^0\./,
+        /^169\.254\./,
+        /^::1$/,
+        /^fc00:/i,
+        /^fe80:/i,
+        /\.local$/i,
+        /\.internal$/i,
+      ];
+      
+      if (blockedPatterns.some(pattern => pattern.test(hostname))) {
+        return res.status(400).json({ message: 'Internal URLs are not allowed', field: 'url' });
+      }
+      
+      // Fetch with timeout
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; RecipeBot/1.0)',
           'Accept': 'text/html,application/xhtml+xml',
         },
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeout);
       
       if (!response.ok) {
         return res.status(400).json({ message: 'Could not fetch URL', field: 'url' });

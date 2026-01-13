@@ -53,6 +53,12 @@ type Translations = {
     addToPlan: string;
     createRecipe: string;
     searchPlaceholder: string;
+    fetch: string;
+    enterUrl: string;
+    fetchSuccess: string;
+    ingredientsFound: string;
+    fetchFailed: string;
+    couldNotFetchRecipe: string;
     
     // Grocery
     addItem: string;
@@ -113,6 +119,12 @@ const translations: Translations = {
     addToPlan: "Lägg till i veckoplan",
     createRecipe: "Nytt Recept",
     searchPlaceholder: "Sök recept...",
+    fetch: "Hämta",
+    enterUrl: "Ange en URL först",
+    fetchSuccess: "Recept hämtat",
+    ingredientsFound: "ingredienser hittade",
+    fetchFailed: "Kunde inte hämta",
+    couldNotFetchRecipe: "Kunde inte läsa receptet från länken",
     addItem: "Lägg till vara",
     clearBought: "Rensa köpta",
     bought: "Köpt",
@@ -168,6 +180,12 @@ const translations: Translations = {
     addToPlan: "Add to Weekly Plan",
     createRecipe: "New Recipe",
     searchPlaceholder: "Search recipes...",
+    fetch: "Fetch",
+    enterUrl: "Enter a URL first",
+    fetchSuccess: "Recipe fetched",
+    ingredientsFound: "ingredients found",
+    fetchFailed: "Could not fetch",
+    couldNotFetchRecipe: "Could not read recipe from the link",
     addItem: "Add Item",
     clearBought: "Clear Bought",
     bought: "Bought",
