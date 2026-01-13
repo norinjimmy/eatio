@@ -17,6 +17,8 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, us
 import { Link } from "wouter";
 import { startOfWeek, addWeeks, format, getISOWeek } from "date-fns";
 import { sv, enUS } from "date-fns/locale";
+import { RecipeDetailDialog } from "@/components/RecipeDetailDialog";
+import type { Recipe } from "@/lib/store";
 
 // Simple fuzzy match - checks if all characters in query appear in order in target
 function fuzzyMatch(query: string, target: string): { match: boolean; score: number } {
@@ -144,6 +146,20 @@ export default function WeeklyPlan() {
   
   // Drag and drop state
   const [activeDragMeal, setActiveDragMeal] = useState<Meal | null>(null);
+  
+  // Recipe dialog state
+  const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
+  const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
+  
+  const handleRecipeClick = (meal: Meal) => {
+    if (meal.recipeId) {
+      const recipe = recipes.find(r => r.id === meal.recipeId);
+      if (recipe) {
+        setViewingRecipe(recipe);
+        setRecipeDialogOpen(true);
+      }
+    }
+  };
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -400,7 +416,8 @@ export default function WeeklyPlan() {
                               key={meal.id} 
                               meal={meal} 
                               isDraggable={!isReadOnly}
-                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
+                              onRecipeClick={handleRecipeClick}
                             />
                           ))}
                         </div>
@@ -436,7 +453,8 @@ export default function WeeklyPlan() {
                               key={meal.id} 
                               meal={meal} 
                               isDraggable={!isReadOnly}
-                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
+                              onRecipeClick={handleRecipeClick}
                             />
                           ))}
                         </div>
@@ -472,7 +490,8 @@ export default function WeeklyPlan() {
                               key={meal.id} 
                               meal={meal} 
                               isDraggable={!isReadOnly}
-                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
+                              onRecipeClick={handleRecipeClick}
                             />
                           ))}
                         </div>
@@ -666,6 +685,12 @@ export default function WeeklyPlan() {
         ) : null}
       </DragOverlay>
       </DndContext>
+
+      <RecipeDetailDialog
+        recipe={viewingRecipe}
+        open={recipeDialogOpen}
+        onOpenChange={setRecipeDialogOpen}
+      />
     </Layout>
   );
 }
@@ -689,7 +714,7 @@ function DroppableSlot({ id, children, isEmpty }: { id: string; children: React.
 }
 
 // Draggable meal item component
-function DraggableMealItem({ meal, onDelete, isDraggable }: { meal: Meal; onDelete?: () => void; isDraggable: boolean }) {
+function DraggableMealItem({ meal, onDelete, isDraggable, onRecipeClick }: { meal: Meal; onDelete?: () => void; isDraggable: boolean; onRecipeClick?: (meal: Meal) => void }) {
   const { recipes } = useStore();
   const recipe = meal.recipeId ? recipes.find(r => r.id === meal.recipeId) : null;
   
@@ -703,14 +728,18 @@ function DraggableMealItem({ meal, onDelete, isDraggable }: { meal: Meal; onDele
       ref={setNodeRef}
       className={cn(
         "group flex items-center justify-between bg-muted/30 rounded-xl p-3 hover:bg-muted/60 transition-colors",
-        isDragging && "opacity-50"
+        isDragging && "opacity-50",
+        recipe && "cursor-pointer"
       )}
+      onClick={() => recipe && onRecipeClick?.(meal)}
+      data-testid={`meal-item-${meal.id}`}
     >
       {isDraggable && (
         <div 
           {...listeners} 
           {...attributes}
           className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 text-muted-foreground hover:text-foreground touch-none"
+          onClick={(e) => e.stopPropagation()}
         >
           <GripVertical size={16} />
         </div>

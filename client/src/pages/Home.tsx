@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/lib/i18n";
-import { useStore, Recipe } from "@/lib/store";
+import { useStore, Recipe, Meal } from "@/lib/store";
 import { ArrowRight, Utensils, CalendarDays, ShoppingBag, TrendingUp, Plus } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { startOfWeek, format } from "date-fns";
+import { RecipeDetailDialog } from "@/components/RecipeDetailDialog";
 
 export default function Home() {
   const { t } = useTranslation();
@@ -21,6 +22,19 @@ export default function Home() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [selectedDay, setSelectedDay] = useState("");
   const [selectedMealType, setSelectedMealType] = useState("Dinner");
+  
+  const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
+  const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
+  
+  const handleMealClick = (meal: Meal) => {
+    if (meal.recipeId) {
+      const recipe = recipes.find(r => r.id === meal.recipeId);
+      if (recipe) {
+        setViewingRecipe(recipe);
+        setRecipeDialogOpen(true);
+      }
+    }
+  };
   
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   
@@ -106,7 +120,11 @@ export default function Home() {
             <CardContent className="p-0">
               <div className="flex flex-col divide-y divide-border/40">
                 {!isWorkDay && (
-                  <div className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors">
+                  <div 
+                    className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors"
+                    onClick={() => lunch && handleMealClick(lunch)}
+                    data-testid="meal-lunch-today"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                         <Utensils size={24} />
@@ -120,10 +138,14 @@ export default function Home() {
                         </div>
                       </div>
                     </div>
-                    <ArrowRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                    {lunch?.recipeId && <ArrowRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />}
                   </div>
                 )}
-                <div className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors">
+                <div 
+                  className="p-5 flex items-center justify-between group cursor-pointer hover:bg-primary/5 transition-colors"
+                  onClick={() => dinner && handleMealClick(dinner)}
+                  data-testid="meal-dinner-today"
+                >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600">
                       <Utensils size={24} />
@@ -137,7 +159,7 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-                  <ArrowRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                  {dinner?.recipeId && <ArrowRight size={20} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />}
                 </div>
               </div>
             </CardContent>
@@ -284,6 +306,12 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <RecipeDetailDialog
+        recipe={viewingRecipe}
+        open={recipeDialogOpen}
+        onOpenChange={setRecipeDialogOpen}
+      />
     </Layout>
   );
 }

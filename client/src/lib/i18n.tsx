@@ -142,6 +142,17 @@ type Translations = {
     previousWeek: string;
     nextWeek: string;
     thisWeek: string;
+    viewOriginalRecipe: string;
+    noRecipeDetails: string;
+    close: string;
+    workSchedule: string;
+    workScheduleDesc: string;
+    account: string;
+    accountDesc: string;
+    deleteAccount: string;
+    deleteAccountDesc: string;
+    confirmDeleteAccount: string;
+    accountDeleted: string;
   };
 };
 
@@ -274,6 +285,17 @@ const translations: Translations = {
     previousWeek: "Föregående vecka",
     nextWeek: "Nästa vecka",
     thisWeek: "Denna vecka",
+    viewOriginalRecipe: "Visa originalrecept",
+    noRecipeDetails: "Inga receptdetaljer tillgängliga",
+    close: "Stäng",
+    workSchedule: "Arbetsschema",
+    workScheduleDesc: "Ställ in arbetsdagar och skift för att dölja måltider automatiskt",
+    account: "Konto",
+    accountDesc: "Hantera din profil och kontoinställningar",
+    deleteAccount: "Radera konto",
+    deleteAccountDesc: "Ta bort ditt konto permanent och all tillhörande data",
+    confirmDeleteAccount: "Är du säker på att du vill radera ditt konto? Detta kan inte ångras.",
+    accountDeleted: "Ditt konto har raderats",
   },
   en: {
     home: "Home",
@@ -403,6 +425,17 @@ const translations: Translations = {
     previousWeek: "Previous week",
     nextWeek: "Next week",
     thisWeek: "This week",
+    viewOriginalRecipe: "View original recipe",
+    noRecipeDetails: "No recipe details available",
+    close: "Close",
+    workSchedule: "Work Schedule",
+    workScheduleDesc: "Set your work days and shift to automatically hide meals",
+    account: "Account",
+    accountDesc: "Manage your profile and account settings",
+    deleteAccount: "Delete Account",
+    deleteAccountDesc: "Permanently remove your account and all associated data",
+    confirmDeleteAccount: "Are you sure you want to delete your account? This cannot be undone.",
+    accountDeleted: "Your account has been deleted",
   }
 };
 

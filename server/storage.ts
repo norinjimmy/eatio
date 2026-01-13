@@ -52,6 +52,9 @@ export interface IStorage {
   getWeekHistory(userId: string): Promise<WeekHistory[]>;
   getWeekHistoryByWeek(userId: string, weekStart: string): Promise<WeekHistory | undefined>;
   archiveWeek(userId: string, weekStart: string, mealsData: Meal[]): Promise<WeekHistory>;
+
+  // Account
+  deleteUserData(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -243,6 +246,18 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date().toISOString(),
     }).returning();
     return created;
+  }
+
+  // Account
+  async deleteUserData(userId: string): Promise<void> {
+    await db.delete(meals).where(eq(meals.userId, userId));
+    await db.delete(recipes).where(eq(recipes.userId, userId));
+    await db.delete(groceryItems).where(eq(groceryItems.userId, userId));
+    await db.delete(userSettings).where(eq(userSettings.userId, userId));
+    await db.delete(mealPlanShares).where(
+      or(eq(mealPlanShares.ownerId, userId), eq(mealPlanShares.invitedUserId, userId))
+    );
+    await db.delete(weekHistory).where(eq(weekHistory.userId, userId));
   }
 }
 

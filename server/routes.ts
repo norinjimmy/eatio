@@ -621,5 +621,12 @@ Only return the JSON, no other text.`
     res.json(archived);
   });
 
+  // Account deletion
+  app.delete('/api/account', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    await storage.deleteUserData(userId);
+    res.status(204).send();
+  });
+
   return httpServer;
 }
