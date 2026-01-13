@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Layout from "@/components/Layout";
 import { useTranslation } from "@/lib/i18n";
 import { useStore, Recipe } from "@/lib/store";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Heart, Search, Plus, ChefHat, Trash2, Edit2, ExternalLink, Download, Loader2 } from "lucide-react";
+import { Heart, Search, Plus, ChefHat, Trash2, Edit2, ExternalLink, Download, Loader2, Camera, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,6 +26,10 @@ export default function Recipes() {
   const [ingredients, setIngredients] = useState("");
   const [instructions, setInstructions] = useState("");
   const [isFetching, setIsFetching] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const filteredRecipes = recipes.filter(r => 
     r.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -58,6 +62,61 @@ export default function Recipes() {
       });
     } finally {
       setIsFetching(false);
+    }
+  };
+
+  const handlePhotoScan = async (file: File) => {
+    setIsScanning(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        
+        try {
+          const response = await apiRequest('POST', '/api/scan-recipe', { image: base64 });
+          const data = await response.json() as { name?: string; ingredients: string[]; instructions?: string };
+          
+          if (data.name) setName(data.name);
+          if (data.ingredients && data.ingredients.length > 0) setIngredients(data.ingredients.join('\n'));
+          if (data.instructions) setInstructions(data.instructions);
+          
+          toast({ 
+            title: t("scanSuccess"), 
+            description: `${data.ingredients?.length || 0} ${t("ingredientsFound")}` 
+          });
+        } catch (err) {
+          toast({ 
+            title: t("scanFailed"), 
+            description: t("couldNotScanRecipe"),
+            variant: "destructive" 
+          });
+        } finally {
+          setIsScanning(false);
+        }
+      };
+      reader.onerror = () => {
+        toast({ 
+          title: t("scanFailed"), 
+          description: t("couldNotScanRecipe"),
+          variant: "destructive" 
+        });
+        setIsScanning(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      toast({ 
+        title: t("scanFailed"), 
+        description: t("couldNotScanRecipe"),
+        variant: "destructive" 
+      });
+      setIsScanning(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handlePhotoScan(file);
     }
   };
 
@@ -124,6 +183,66 @@ export default function Recipes() {
             <DialogTitle>{t("createRecipe")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Photo scan buttons */}
+            <div className="flex gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                ref={cameraInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                data-testid="input-camera"
+              />
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                data-testid="input-file-upload"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={isScanning}
+                className="rounded-xl flex-1"
+                data-testid="button-take-photo"
+              >
+                {isScanning ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Camera size={16} />
+                )}
+                <span className="ml-1.5">{isScanning ? t("scanning") : t("takePhoto")}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isScanning}
+                className="rounded-xl flex-1"
+                data-testid="button-upload-photo"
+              >
+                {isScanning ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Upload size={16} />
+                )}
+                <span className="ml-1.5">{isScanning ? t("scanning") : t("uploadPhoto")}</span>
+              </Button>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>{t("recipeName")}</Label>
               <Input 
@@ -131,6 +250,7 @@ export default function Recipes() {
                 onChange={(e) => setName(e.target.value)}
                 className="rounded-xl"
                 placeholder="e.g. Pasta Carbonara"
+                data-testid="input-recipe-name"
               />
             </div>
             <div className="space-y-2">

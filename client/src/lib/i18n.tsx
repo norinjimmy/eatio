@@ -74,6 +74,13 @@ type Translations = {
     settings: string;
     workDays: string;
     workDaysDesc: string;
+    scanRecipe: string;
+    takePhoto: string;
+    uploadPhoto: string;
+    scanning: string;
+    scanSuccess: string;
+    scanFailed: string;
+    couldNotScanRecipe: string;
   };
 };
 
@@ -138,6 +145,13 @@ const translations: Translations = {
     settings: "Inställningar",
     workDays: "Arbetsdagar",
     workDaysDesc: "Välj dagar du jobbar dagtid och äter lunch på jobbet.",
+    scanRecipe: "Skanna recept",
+    takePhoto: "Ta foto",
+    uploadPhoto: "Ladda upp foto",
+    scanning: "Analyserar...",
+    scanSuccess: "Recept skannat",
+    scanFailed: "Kunde inte skanna",
+    couldNotScanRecipe: "Kunde inte läsa receptet från bilden",
   },
   en: {
     home: "Home",
@@ -199,6 +213,13 @@ const translations: Translations = {
     settings: "Settings",
     workDays: "Work Days",
     workDaysDesc: "Select days you work daytime and eat lunch at work.",
+    scanRecipe: "Scan recipe",
+    takePhoto: "Take photo",
+    uploadPhoto: "Upload photo",
+    scanning: "Scanning...",
+    scanSuccess: "Recipe scanned",
+    scanFailed: "Could not scan",
+    couldNotScanRecipe: "Could not read recipe from the image",
   }
 };
 
