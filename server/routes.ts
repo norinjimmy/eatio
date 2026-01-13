@@ -1,30 +1,41 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import * as cheerio from "cheerio";
 import OpenAI from "openai";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
+function getUserId(req: Request): string {
+  return (req.user as any)?.claims?.sub;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Setup auth BEFORE other routes
+  await setupAuth(app);
+  registerAuthRoutes(app);
+
   // Recipes
-  app.get(api.recipes.list.path, async (req, res) => {
-    const recipes = await storage.getRecipes();
+  app.get(api.recipes.list.path, isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const recipes = await storage.getRecipes(userId);
     res.json(recipes);
   });
 
-  app.post(api.recipes.create.path, async (req, res) => {
+  app.post(api.recipes.create.path, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const input = api.recipes.create.input.parse(req.body);
-      const recipe = await storage.createRecipe(input);
+      const recipe = await storage.createRecipe({ ...input, userId });
       res.status(201).json(recipe);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -37,11 +48,12 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.recipes.update.path, async (req, res) => {
+  app.patch(api.recipes.update.path, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const id = Number(req.params.id);
       const input = api.recipes.update.input.parse(req.body);
-      const updated = await storage.updateRecipe(id, input);
+      const updated = await storage.updateRecipe(userId, id, input);
       res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -54,17 +66,17 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.recipes.delete.path, async (req, res) => {
-    await storage.deleteRecipe(Number(req.params.id));
+  app.delete(api.recipes.delete.path, isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    await storage.deleteRecipe(userId, Number(req.params.id));
     res.status(204).send();
   });
 
-  // Scrape recipe from URL
-  app.post(api.scrape.path, async (req, res) => {
+  // Scrape recipe from URL (protected)
+  app.post(api.scrape.path, isAuthenticated, async (req, res) => {
     try {
       const { url } = api.scrape.input.parse(req.body);
       
-      // Security: Validate URL protocol and block internal addresses
       let parsedUrl: URL;
       try {
         parsedUrl = new URL(url);
@@ -72,12 +84,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: 'Invalid URL', field: 'url' });
       }
       
-      // Only allow http/https protocols
       if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
         return res.status(400).json({ message: 'Only HTTP/HTTPS URLs are allowed', field: 'url' });
       }
       
-      // Block localhost, private IPs, and internal hostnames
       const hostname = parsedUrl.hostname.toLowerCase();
       const blockedPatterns = [
         /^localhost$/i,
@@ -98,9 +108,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: 'Internal URLs are not allowed', field: 'url' });
       }
       
-      // Fetch with timeout
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      const timeout = setTimeout(() => controller.abort(), 10000);
       
       const response = await fetch(url, {
         headers: {
@@ -116,7 +125,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: 'Could not fetch URL', field: 'url' });
       }
       
-      // Limit response size to 5MB to prevent memory exhaustion
       const contentLength = response.headers.get('content-length');
       if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) {
         return res.status(400).json({ message: 'Response too large', field: 'url' });
@@ -124,7 +132,6 @@ export async function registerRoutes(
       
       const html = await response.text();
       
-      // Additional size check after reading
       if (html.length > 5 * 1024 * 1024) {
         return res.status(400).json({ message: 'Response too large', field: 'url' });
       }
@@ -134,7 +141,6 @@ export async function registerRoutes(
       let ingredients: string[] = [];
       let instructions: string | undefined;
       
-      // Try to find JSON-LD structured data first (most reliable)
       $('script[type="application/ld+json"]').each((_, el) => {
         try {
           const json = JSON.parse($(el).html() || '');
@@ -169,7 +175,6 @@ export async function registerRoutes(
         }
       });
       
-      // Fallback: try common HTML patterns if no structured data
       if (ingredients.length === 0) {
         $('[class*="ingredient"], [itemprop="recipeIngredient"], .ingredients li, .ingredient-list li').each((_, el) => {
           const text = $(el).text().trim();
@@ -199,15 +204,17 @@ export async function registerRoutes(
   });
 
   // Meals
-  app.get(api.meals.list.path, async (req, res) => {
-    const meals = await storage.getMeals();
+  app.get(api.meals.list.path, isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const meals = await storage.getMeals(userId);
     res.json(meals);
   });
 
-  app.post(api.meals.create.path, async (req, res) => {
+  app.post(api.meals.create.path, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const input = api.meals.create.input.parse(req.body);
-      const meal = await storage.createMeal(input);
+      const meal = await storage.createMeal({ ...input, userId });
       res.status(201).json(meal);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -220,11 +227,12 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.meals.update.path, async (req, res) => {
+  app.patch(api.meals.update.path, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const id = Number(req.params.id);
       const input = api.meals.update.input.parse(req.body);
-      const updated = await storage.updateMeal(id, input);
+      const updated = await storage.updateMeal(userId, id, input);
       res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -237,21 +245,24 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.meals.delete.path, async (req, res) => {
-    await storage.deleteMeal(Number(req.params.id));
+  app.delete(api.meals.delete.path, isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    await storage.deleteMeal(userId, Number(req.params.id));
     res.status(204).send();
   });
 
   // Grocery
-  app.get(api.grocery.list.path, async (req, res) => {
-    const items = await storage.getGroceryItems();
+  app.get(api.grocery.list.path, isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const items = await storage.getGroceryItems(userId);
     res.json(items);
   });
 
-  app.post(api.grocery.create.path, async (req, res) => {
+  app.post(api.grocery.create.path, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const input = api.grocery.create.input.parse(req.body);
-      const item = await storage.createGroceryItem(input);
+      const item = await storage.createGroceryItem({ ...input, userId });
       res.status(201).json(item);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -264,11 +275,12 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.grocery.update.path, async (req, res) => {
+  app.patch(api.grocery.update.path, isAuthenticated, async (req, res) => {
     try {
+      const userId = getUserId(req);
       const id = Number(req.params.id);
       const input = api.grocery.update.input.parse(req.body);
-      const updated = await storage.updateGroceryItem(id, input);
+      const updated = await storage.updateGroceryItem(userId, id, input);
       res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -281,13 +293,62 @@ export async function registerRoutes(
     }
   });
 
-  app.delete(api.grocery.delete.path, async (req, res) => {
-    await storage.deleteGroceryItem(Number(req.params.id));
+  app.delete(api.grocery.delete.path, isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    await storage.deleteGroceryItem(userId, Number(req.params.id));
     res.status(204).send();
   });
 
-  // Scan recipe from photo using AI vision
-  app.post('/api/scan-recipe', async (req, res) => {
+  // Clear all grocery items
+  app.delete('/api/grocery', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    await storage.deleteAllGroceryItems(userId);
+    res.status(204).send();
+  });
+
+  // Delete grocery items by meal
+  app.delete('/api/grocery/by-meal/:mealName', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const mealName = decodeURIComponent(req.params.mealName);
+    await storage.deleteGroceryItemsByMeal(userId, mealName);
+    res.status(204).send();
+  });
+
+  // User Settings
+  app.get('/api/settings', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const settings = await storage.getUserSettings(userId);
+    if (settings) {
+      res.json(settings);
+    } else {
+      res.json({
+        userId,
+        workDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        workShift: "day",
+        breakfastDays: [],
+      });
+    }
+  });
+
+  app.put('/api/settings', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { workDays, workShift, breakfastDays } = req.body;
+      const settings = await storage.upsertUserSettings({
+        userId,
+        workDays: workDays || [],
+        workShift: workShift || 'day',
+        breakfastDays: breakfastDays || [],
+      });
+      res.json(settings);
+    } catch (err) {
+      console.error('Settings error:', err);
+      res.status(500).json({ message: 'Failed to save settings' });
+    }
+  });
+
+  // Scan recipe from photo using AI vision (protected)
+  app.post('/api/scan-recipe', isAuthenticated, async (req, res) => {
     try {
       const { image } = req.body;
       
@@ -320,23 +381,6 @@ CRITICAL RULES FOR INGREDIENTS:
 - Include portion info like "1 portion" as the first ingredient if present
 - Do NOT summarize or shorten - copy exactly what you see
 
-Example for a recipe with topping:
-{
-  "ingredients": [
-    "1 portion",
-    "1 dl havregryn",
-    "50 g hallon",
-    "2 dl vatten",
-    "lite salt och sötströ",
-    "--- Topping ---",
-    "1 dl (35 g) proteinpulver (kasein vanilj)",
-    "25 g cream cheese (9%)",
-    "ca 1 dl vatten",
-    "några extra hallon",
-    "1 sockerfritt digestivekex"
-  ]
-}
-
 If you cannot read something clearly, write "[oläsligt]" instead of guessing.
 Only return the JSON, no other text.`
               },
@@ -355,10 +399,8 @@ Only return the JSON, no other text.`
 
       const content = response.choices[0]?.message?.content || '';
       
-      // Try to parse the JSON from the response
       let parsed;
       try {
-        // Remove markdown code blocks if present
         const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         parsed = JSON.parse(jsonStr);
       } catch {

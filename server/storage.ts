@@ -1,43 +1,52 @@
 import { db } from "./db";
 import {
-  recipes, meals, groceryItems,
+  recipes, meals, groceryItems, userSettings,
   type Recipe, type InsertRecipe,
   type Meal, type InsertMeal,
-  type GroceryItem, type InsertGroceryItem
+  type GroceryItem, type InsertGroceryItem,
+  type UserSettings, type InsertUserSettings
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   // Recipes
-  getRecipes(): Promise<Recipe[]>;
-  getRecipe(id: number): Promise<Recipe | undefined>;
+  getRecipes(userId: string): Promise<Recipe[]>;
+  getRecipe(userId: string, id: number): Promise<Recipe | undefined>;
   createRecipe(recipe: InsertRecipe): Promise<Recipe>;
-  updateRecipe(id: number, updates: Partial<InsertRecipe>): Promise<Recipe>;
-  deleteRecipe(id: number): Promise<void>;
+  updateRecipe(userId: string, id: number, updates: Partial<InsertRecipe>): Promise<Recipe>;
+  deleteRecipe(userId: string, id: number): Promise<void>;
 
   // Meals
-  getMeals(): Promise<Meal[]>;
-  getMeal(id: number): Promise<Meal | undefined>;
+  getMeals(userId: string): Promise<Meal[]>;
+  getMeal(userId: string, id: number): Promise<Meal | undefined>;
   createMeal(meal: InsertMeal): Promise<Meal>;
-  updateMeal(id: number, updates: Partial<InsertMeal>): Promise<Meal>;
-  deleteMeal(id: number): Promise<void>;
+  updateMeal(userId: string, id: number, updates: Partial<InsertMeal>): Promise<Meal>;
+  deleteMeal(userId: string, id: number): Promise<void>;
+  deleteAllMeals(userId: string): Promise<void>;
 
   // Grocery
-  getGroceryItems(): Promise<GroceryItem[]>;
-  getGroceryItem(id: number): Promise<GroceryItem | undefined>;
+  getGroceryItems(userId: string): Promise<GroceryItem[]>;
+  getGroceryItem(userId: string, id: number): Promise<GroceryItem | undefined>;
   createGroceryItem(item: InsertGroceryItem): Promise<GroceryItem>;
-  updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem>;
-  deleteGroceryItem(id: number): Promise<void>;
+  updateGroceryItem(userId: string, id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem>;
+  deleteGroceryItem(userId: string, id: number): Promise<void>;
+  deleteAllGroceryItems(userId: string): Promise<void>;
+  deleteGroceryItemsByMeal(userId: string, mealName: string): Promise<void>;
+
+  // Settings
+  getUserSettings(userId: string): Promise<UserSettings | undefined>;
+  upsertUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
   // Recipes
-  async getRecipes(): Promise<Recipe[]> {
-    return await db.select().from(recipes);
+  async getRecipes(userId: string): Promise<Recipe[]> {
+    return await db.select().from(recipes).where(eq(recipes.userId, userId));
   }
 
-  async getRecipe(id: number): Promise<Recipe | undefined> {
-    const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id));
+  async getRecipe(userId: string, id: number): Promise<Recipe | undefined> {
+    const [recipe] = await db.select().from(recipes)
+      .where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
     return recipe;
   }
 
@@ -46,22 +55,24 @@ export class DatabaseStorage implements IStorage {
     return recipe;
   }
 
-  async updateRecipe(id: number, updates: Partial<InsertRecipe>): Promise<Recipe> {
-    const [updated] = await db.update(recipes).set(updates).where(eq(recipes.id, id)).returning();
+  async updateRecipe(userId: string, id: number, updates: Partial<InsertRecipe>): Promise<Recipe> {
+    const [updated] = await db.update(recipes).set(updates)
+      .where(and(eq(recipes.id, id), eq(recipes.userId, userId))).returning();
     return updated;
   }
 
-  async deleteRecipe(id: number): Promise<void> {
-    await db.delete(recipes).where(eq(recipes.id, id));
+  async deleteRecipe(userId: string, id: number): Promise<void> {
+    await db.delete(recipes).where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
   }
 
   // Meals
-  async getMeals(): Promise<Meal[]> {
-    return await db.select().from(meals);
+  async getMeals(userId: string): Promise<Meal[]> {
+    return await db.select().from(meals).where(eq(meals.userId, userId));
   }
 
-  async getMeal(id: number): Promise<Meal | undefined> {
-    const [meal] = await db.select().from(meals).where(eq(meals.id, id));
+  async getMeal(userId: string, id: number): Promise<Meal | undefined> {
+    const [meal] = await db.select().from(meals)
+      .where(and(eq(meals.id, id), eq(meals.userId, userId)));
     return meal;
   }
 
@@ -70,22 +81,28 @@ export class DatabaseStorage implements IStorage {
     return meal;
   }
 
-  async updateMeal(id: number, updates: Partial<InsertMeal>): Promise<Meal> {
-    const [updated] = await db.update(meals).set(updates).where(eq(meals.id, id)).returning();
+  async updateMeal(userId: string, id: number, updates: Partial<InsertMeal>): Promise<Meal> {
+    const [updated] = await db.update(meals).set(updates)
+      .where(and(eq(meals.id, id), eq(meals.userId, userId))).returning();
     return updated;
   }
 
-  async deleteMeal(id: number): Promise<void> {
-    await db.delete(meals).where(eq(meals.id, id));
+  async deleteMeal(userId: string, id: number): Promise<void> {
+    await db.delete(meals).where(and(eq(meals.id, id), eq(meals.userId, userId)));
+  }
+
+  async deleteAllMeals(userId: string): Promise<void> {
+    await db.delete(meals).where(eq(meals.userId, userId));
   }
 
   // Grocery
-  async getGroceryItems(): Promise<GroceryItem[]> {
-    return await db.select().from(groceryItems);
+  async getGroceryItems(userId: string): Promise<GroceryItem[]> {
+    return await db.select().from(groceryItems).where(eq(groceryItems.userId, userId));
   }
 
-  async getGroceryItem(id: number): Promise<GroceryItem | undefined> {
-    const [item] = await db.select().from(groceryItems).where(eq(groceryItems.id, id));
+  async getGroceryItem(userId: string, id: number): Promise<GroceryItem | undefined> {
+    const [item] = await db.select().from(groceryItems)
+      .where(and(eq(groceryItems.id, id), eq(groceryItems.userId, userId)));
     return item;
   }
 
@@ -94,13 +111,44 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async updateGroceryItem(id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem> {
-    const [updated] = await db.update(groceryItems).set(updates).where(eq(groceryItems.id, id)).returning();
+  async updateGroceryItem(userId: string, id: number, updates: Partial<InsertGroceryItem>): Promise<GroceryItem> {
+    const [updated] = await db.update(groceryItems).set(updates)
+      .where(and(eq(groceryItems.id, id), eq(groceryItems.userId, userId))).returning();
     return updated;
   }
 
-  async deleteGroceryItem(id: number): Promise<void> {
-    await db.delete(groceryItems).where(eq(groceryItems.id, id));
+  async deleteGroceryItem(userId: string, id: number): Promise<void> {
+    await db.delete(groceryItems).where(and(eq(groceryItems.id, id), eq(groceryItems.userId, userId)));
+  }
+
+  async deleteAllGroceryItems(userId: string): Promise<void> {
+    await db.delete(groceryItems).where(eq(groceryItems.userId, userId));
+  }
+
+  async deleteGroceryItemsByMeal(userId: string, mealName: string): Promise<void> {
+    await db.delete(groceryItems)
+      .where(and(eq(groceryItems.userId, userId), eq(groceryItems.sourceMeal, mealName)));
+  }
+
+  // Settings
+  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
+    const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    return settings;
+  }
+
+  async upsertUserSettings(settings: InsertUserSettings): Promise<UserSettings> {
+    const [result] = await db.insert(userSettings)
+      .values(settings)
+      .onConflictDoUpdate({
+        target: userSettings.userId,
+        set: {
+          workDays: settings.workDays,
+          workShift: settings.workShift,
+          breakfastDays: settings.breakfastDays,
+        },
+      })
+      .returning();
+    return result;
   }
 }
 
