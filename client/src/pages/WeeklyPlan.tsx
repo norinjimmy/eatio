@@ -50,7 +50,7 @@ export default function WeeklyPlan() {
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeDay, setActiveDay] = useState<string>("Monday");
-  const [activeType, setActiveType] = useState<'lunch' | 'dinner'>("lunch");
+  const [activeType, setActiveType] = useState<'breakfast' | 'lunch' | 'dinner'>("lunch");
   const [newMealName, setNewMealName] = useState("");
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>("");
 
@@ -60,7 +60,7 @@ export default function WeeklyPlan() {
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [mealToMove, setMealToMove] = useState<Meal | null>(null);
   const [moveTargetDay, setMoveTargetDay] = useState<string>("");
-  const [moveTargetType, setMoveTargetType] = useState<'lunch' | 'dinner'>("lunch");
+  const [moveTargetType, setMoveTargetType] = useState<'breakfast' | 'lunch' | 'dinner'>("lunch");
   
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -156,6 +156,7 @@ export default function WeeklyPlan() {
   };
 
   const getMealsForDay = (day: string) => ({
+    breakfast: meals.filter(m => m.day === day && m.type === "breakfast"),
     lunch: meals.filter(m => m.day === day && m.type === "lunch"),
     dinner: meals.filter(m => m.day === day && m.type === "dinner"),
   });
@@ -163,6 +164,16 @@ export default function WeeklyPlan() {
   const [workDays] = useState<string[]>(() => {
     const saved = localStorage.getItem('app-work-days');
     return saved ? JSON.parse(saved) : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  });
+
+  const [workShift] = useState<'day' | 'evening'>(() => {
+    const saved = localStorage.getItem('app-work-shift');
+    return (saved as 'day' | 'evening') || 'day';
+  });
+
+  const [breakfastDays] = useState<string[]>(() => {
+    const saved = localStorage.getItem('app-breakfast-days');
+    return saved ? JSON.parse(saved) : [];
   });
 
   return (
@@ -179,6 +190,10 @@ export default function WeeklyPlan() {
           const dayMeals = getMealsForDay(day);
           const dayLabel = t(day.toLowerCase() as any);
           const isWorkDay = workDays.includes(day);
+          const showBreakfast = breakfastDays.includes(day);
+          // On work days: hide lunch for day shift, hide dinner for evening shift
+          const showLunch = !isWorkDay || workShift === 'evening';
+          const showDinner = !isWorkDay || workShift === 'day';
           
           return (
             <div key={day} className="bg-card rounded-2xl p-4 shadow-sm border border-border/60">
@@ -188,8 +203,45 @@ export default function WeeklyPlan() {
               </div>
 
               <div className="space-y-3">
+                {/* Breakfast Section */}
+                {showBreakfast && (
+                  <div className="relative">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <Coffee size={12} /> {t("breakfast")}
+                    </div>
+                    {dayMeals.breakfast.length === 0 ? (
+                      <div 
+                        onClick={() => { setActiveDay(day); setActiveType('breakfast'); setIsAddOpen(true); }}
+                        className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                        data-testid={`add-breakfast-${day.toLowerCase()}`}
+                      >
+                        {t("addMeal")}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {dayMeals.breakfast.map(meal => (
+                          <MealItem 
+                            key={meal.id} 
+                            meal={meal} 
+                            onDelete={() => handleDeleteMeal(meal)} 
+                            onMove={() => {
+                              setMealToMove(meal);
+                              setMoveTargetDay(meal.day);
+                              setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
+                              setIsMoveOpen(true);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Divider after breakfast */}
+                {showBreakfast && (showLunch || showDinner) && <div className="border-t border-border/40 my-2" />}
+
                 {/* Lunch Section */}
-                {!isWorkDay && (
+                {showLunch && (
                   <div className="relative">
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
                       <Coffee size={12} /> {t("lunch")}
@@ -198,6 +250,7 @@ export default function WeeklyPlan() {
                       <div 
                         onClick={() => { setActiveDay(day); setActiveType('lunch'); setIsAddOpen(true); }}
                         className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                        data-testid={`add-lunch-${day.toLowerCase()}`}
                       >
                         {t("addMeal")}
                       </div>
@@ -211,7 +264,7 @@ export default function WeeklyPlan() {
                             onMove={() => {
                               setMealToMove(meal);
                               setMoveTargetDay(meal.day);
-                              setMoveTargetType(meal.type);
+                              setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
                               setIsMoveOpen(true);
                             }}
                           />
@@ -221,39 +274,42 @@ export default function WeeklyPlan() {
                   </div>
                 )}
 
-                {/* Divider - only show if not a work day (since lunch is hidden on work days) */}
-                {!isWorkDay && <div className="border-t border-border/40 my-2" />}
+                {/* Divider between lunch and dinner */}
+                {showLunch && showDinner && <div className="border-t border-border/40 my-2" />}
 
                 {/* Dinner Section */}
-                <div className="relative">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <Utensils size={12} /> {t("dinner")}
+                {showDinner && (
+                  <div className="relative">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <Utensils size={12} /> {t("dinner")}
+                    </div>
+                    {dayMeals.dinner.length === 0 ? (
+                      <div 
+                        onClick={() => { setActiveDay(day); setActiveType('dinner'); setIsAddOpen(true); }}
+                        className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                        data-testid={`add-dinner-${day.toLowerCase()}`}
+                      >
+                        {t("addMeal")}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {dayMeals.dinner.map(meal => (
+                          <MealItem 
+                            key={meal.id} 
+                            meal={meal} 
+                            onDelete={() => handleDeleteMeal(meal)} 
+                            onMove={() => {
+                              setMealToMove(meal);
+                              setMoveTargetDay(meal.day);
+                              setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
+                              setIsMoveOpen(true);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {dayMeals.dinner.length === 0 ? (
-                    <div 
-                      onClick={() => { setActiveDay(day); setActiveType('dinner'); setIsAddOpen(true); }}
-                      className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                    >
-                      {t("addMeal")}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {dayMeals.dinner.map(meal => (
-                        <MealItem 
-                          key={meal.id} 
-                          meal={meal} 
-                          onDelete={() => handleDeleteMeal(meal)} 
-                          onMove={() => {
-                            setMealToMove(meal);
-                            setMoveTargetDay(meal.day);
-                            setMoveTargetType(meal.type);
-                            setIsMoveOpen(true);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           );
@@ -391,6 +447,7 @@ export default function WeeklyPlan() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="breakfast">{t("breakfast")}</SelectItem>
                   <SelectItem value="lunch">{t("lunch")}</SelectItem>
                   <SelectItem value="dinner">{t("dinner")}</SelectItem>
                 </SelectContent>

@@ -74,6 +74,13 @@ type Translations = {
     settings: string;
     workDays: string;
     workDaysDesc: string;
+    workShift: string;
+    workShiftDesc: string;
+    dayShift: string;
+    eveningShift: string;
+    breakfastDays: string;
+    breakfastDaysDesc: string;
+    breakfast: string;
     scanRecipe: string;
     takePhoto: string;
     uploadPhoto: string;
@@ -150,7 +157,14 @@ const translations: Translations = {
     plannedDays: "dagar planerade",
     settings: "Inställningar",
     workDays: "Arbetsdagar",
-    workDaysDesc: "Välj dagar du jobbar dagtid och äter lunch på jobbet.",
+    workDaysDesc: "Välj dagar du jobbar och vill hoppa över en måltid.",
+    workShift: "Arbetspass",
+    workShiftDesc: "Välj om du jobbar dag eller kväll för att dölja rätt måltid på arbetsdagar.",
+    dayShift: "Dagtid (hoppa över lunch)",
+    eveningShift: "Kvällstid (hoppa över middag)",
+    breakfastDays: "Frukostdagar",
+    breakfastDaysDesc: "Välj vilka dagar du vill planera frukost.",
+    breakfast: "Frukost",
     scanRecipe: "Skanna recept",
     takePhoto: "Ta foto",
     uploadPhoto: "Ladda upp foto",
@@ -224,7 +238,14 @@ const translations: Translations = {
     plannedDays: "days planned",
     settings: "Settings",
     workDays: "Work Days",
-    workDaysDesc: "Select days you work daytime and eat lunch at work.",
+    workDaysDesc: "Select days you work and want to skip a meal.",
+    workShift: "Work shift",
+    workShiftDesc: "Choose if you work day or evening shift to hide the right meal on work days.",
+    dayShift: "Day shift (skip lunch)",
+    eveningShift: "Evening shift (skip dinner)",
+    breakfastDays: "Breakfast days",
+    breakfastDaysDesc: "Choose which days you want to plan breakfast.",
+    breakfast: "Breakfast",
     scanRecipe: "Scan recipe",
     takePhoto: "Take photo",
     uploadPhoto: "Upload photo",
