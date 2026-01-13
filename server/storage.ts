@@ -43,10 +43,13 @@ export interface IStorage {
   createShare(share: InsertMealPlanShare): Promise<MealPlanShare>;
   getSharesByOwner(ownerId: string): Promise<MealPlanShare[]>;
   getSharesForUser(userId: string, userEmail: string): Promise<MealPlanShare[]>;
+  getPendingSharesForUser(userEmail: string): Promise<MealPlanShare[]>;
   getShareByToken(token: string): Promise<MealPlanShare | undefined>;
   updateShare(id: number, updates: Partial<InsertMealPlanShare>): Promise<MealPlanShare>;
   deleteShare(ownerId: string, id: number): Promise<void>;
   acceptShare(token: string, userId: string): Promise<MealPlanShare | undefined>;
+  acceptShareById(id: number, userId: string): Promise<MealPlanShare | undefined>;
+  declineShare(id: number): Promise<void>;
 
   // Week History
   getWeekHistory(userId: string): Promise<WeekHistory[]>;
@@ -192,6 +195,15 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
+  async getPendingSharesForUser(userEmail: string): Promise<MealPlanShare[]> {
+    return await db.select().from(mealPlanShares).where(
+      and(
+        eq(mealPlanShares.status, "pending"),
+        eq(mealPlanShares.invitedEmail, userEmail)
+      )
+    );
+  }
+
   async getShareByToken(token: string): Promise<MealPlanShare | undefined> {
     const [share] = await db.select().from(mealPlanShares).where(eq(mealPlanShares.shareToken, token));
     return share;
@@ -215,6 +227,18 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(mealPlanShares.shareToken, token), eq(mealPlanShares.status, "pending")))
       .returning();
     return updated;
+  }
+
+  async acceptShareById(id: number, userId: string): Promise<MealPlanShare | undefined> {
+    const [updated] = await db.update(mealPlanShares)
+      .set({ status: "accepted", invitedUserId: userId })
+      .where(and(eq(mealPlanShares.id, id), eq(mealPlanShares.status, "pending")))
+      .returning();
+    return updated;
+  }
+
+  async declineShare(id: number): Promise<void> {
+    await db.delete(mealPlanShares).where(eq(mealPlanShares.id, id));
   }
 
   // Week History

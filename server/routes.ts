@@ -494,12 +494,71 @@ Only return the JSON, no other text.`
     res.json(shares);
   });
 
-  // Get shared with me (plans others have shared with me)
+  // Get shared with me (plans others have shared with me - accepted only)
   app.get('/api/shares/received', isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
     const userEmail = (req.user as any)?.claims?.email || '';
     const shares = await storage.getSharesForUser(userId, userEmail);
     res.json(shares);
+  });
+
+  // Get pending invitations for this user
+  app.get('/api/shares/pending', isAuthenticated, async (req, res) => {
+    const userEmail = (req.user as any)?.claims?.email || '';
+    if (!userEmail) {
+      return res.json([]);
+    }
+    const shares = await storage.getPendingSharesForUser(userEmail.toLowerCase());
+    res.json(shares);
+  });
+
+  // Accept a share by ID
+  app.post('/api/shares/:id/accept', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.id);
+      
+      // Verify this invitation is for this user
+      const pendingShares = await storage.getPendingSharesForUser(userEmail.toLowerCase());
+      const share = pendingShares.find(s => s.id === shareId);
+      
+      if (!share) {
+        return res.status(404).json({ message: 'Invitation not found' });
+      }
+      
+      const updated = await storage.acceptShareById(shareId, userId);
+      if (!updated) {
+        return res.status(400).json({ message: 'Failed to accept invitation' });
+      }
+      res.json(updated);
+    } catch (err) {
+      console.error('Accept share error:', err);
+      res.status(500).json({ message: 'Failed to accept invitation' });
+    }
+  });
+
+  // Decline a share invitation
+  app.post('/api/shares/:id/decline', isAuthenticated, async (req, res) => {
+    try {
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.id);
+      
+      // Verify this invitation is for this user
+      const pendingShares = await storage.getPendingSharesForUser(userEmail.toLowerCase());
+      const share = pendingShares.find(s => s.id === shareId);
+      
+      if (!share) {
+        return res.status(404).json({ message: 'Invitation not found' });
+      }
+      
+      // Use declineShare which directly deletes by ID
+      await storage.declineShare(shareId);
+      res.status(204).send();
+    } catch (err) {
+      console.error('Decline share error:', err);
+      res.status(500).json({ message: 'Failed to decline invitation' });
+    }
   });
 
   // Create a share invite

@@ -93,12 +93,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateMealMutation = useMutation({
     mutationFn: ({ id, updates }: { id: number; updates: Partial<Meal> }) =>
       apiRequest('PATCH', `/api/meals/${id}`, updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/meals'] }),
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/meals'] });
+      const previousMeals = queryClient.getQueryData<Meal[]>(['/api/meals']);
+      if (previousMeals) {
+        queryClient.setQueryData<Meal[]>(['/api/meals'], 
+          previousMeals.map(meal => meal.id === id ? { ...meal, ...updates } : meal)
+        );
+      }
+      return { previousMeals };
+    },
+    onError: (_, __, context) => {
+      if (context?.previousMeals) {
+        queryClient.setQueryData(['/api/meals'], context.previousMeals);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['/api/meals'] }),
   });
 
   const deleteMealMutation = useMutation({
     mutationFn: (id: number) => apiRequest('DELETE', `/api/meals/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/meals'] }),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/meals'] });
+      const previousMeals = queryClient.getQueryData<Meal[]>(['/api/meals']);
+      if (previousMeals) {
+        queryClient.setQueryData<Meal[]>(['/api/meals'], previousMeals.filter(m => m.id !== id));
+      }
+      return { previousMeals };
+    },
+    onError: (_, __, context) => {
+      if (context?.previousMeals) {
+        queryClient.setQueryData(['/api/meals'], context.previousMeals);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['/api/meals'] }),
   });
 
   const createGroceryMutation = useMutation({
@@ -110,7 +138,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateGroceryMutation = useMutation({
     mutationFn: ({ id, updates }: { id: number; updates: Partial<GroceryItem> }) =>
       apiRequest('PATCH', `/api/grocery/${id}`, updates),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/grocery'] }),
+    onMutate: async ({ id, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/grocery'] });
+      const previousItems = queryClient.getQueryData<GroceryItem[]>(['/api/grocery']);
+      if (previousItems) {
+        queryClient.setQueryData<GroceryItem[]>(['/api/grocery'], 
+          previousItems.map(item => item.id === id ? { ...item, ...updates } : item)
+        );
+      }
+      return { previousItems };
+    },
+    onError: (_, __, context) => {
+      if (context?.previousItems) {
+        queryClient.setQueryData(['/api/grocery'], context.previousItems);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['/api/grocery'] }),
   });
 
   const deleteGroceryMutation = useMutation({

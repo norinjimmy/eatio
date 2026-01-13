@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback, memo } from "react";
 import Layout from "@/components/Layout";
 import { useTranslation } from "@/lib/i18n";
 import { useStore, Meal } from "@/lib/store";
@@ -151,7 +151,7 @@ export default function WeeklyPlan() {
   const [recipeDialogOpen, setRecipeDialogOpen] = useState(false);
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
   
-  const handleRecipeClick = (meal: Meal) => {
+  const handleRecipeClick = useCallback((meal: Meal) => {
     if (meal.recipeId) {
       const recipe = recipes.find(r => r.id === meal.recipeId);
       if (recipe) {
@@ -159,7 +159,7 @@ export default function WeeklyPlan() {
         setRecipeDialogOpen(true);
       }
     }
-  };
+  }, [recipes]);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -169,15 +169,15 @@ export default function WeeklyPlan() {
     })
   );
   
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     const mealId = event.active.id as number;
     const meal = displayMeals.find(m => m.id === mealId);
     if (meal) {
       setActiveDragMeal(meal);
     }
-  };
+  }, [displayMeals]);
   
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragMeal(null);
     
@@ -196,9 +196,9 @@ export default function WeeklyPlan() {
         description: `${t(targetDay.toLowerCase() as any)} ${t(targetType.toLowerCase() as any)}` 
       });
     }
-  };
+  }, [moveMeal, toast, t]);
   
-  const handleDeleteMeal = (meal: Meal) => {
+  const handleDeleteMeal = useCallback((meal: Meal) => {
     // Check if this meal has ingredients in the grocery list
     const hasIngredients = groceryItems.some(item => item.sourceMeal === meal.name && !item.isBought);
     
@@ -211,7 +211,7 @@ export default function WeeklyPlan() {
       deleteMeal(meal.id);
       toast({ title: t("delete"), description: meal.name });
     }
-  };
+  }, [groceryItems, deleteMeal, toast, t]);
   
   const confirmDeleteMeal = (removeIngredients: boolean) => {
     if (!mealToDelete) return;
@@ -713,8 +713,8 @@ function DroppableSlot({ id, children, isEmpty }: { id: string; children: React.
   );
 }
 
-// Draggable meal item component
-function DraggableMealItem({ meal, onDelete, isDraggable, onRecipeClick }: { meal: Meal; onDelete?: () => void; isDraggable: boolean; onRecipeClick?: (meal: Meal) => void }) {
+// Draggable meal item component - memoized for performance
+const DraggableMealItem = memo(function DraggableMealItem({ meal, onDelete, isDraggable, onRecipeClick }: { meal: Meal; onDelete?: () => void; isDraggable: boolean; onRecipeClick?: (meal: Meal) => void }) {
   const { recipes } = useStore();
   const recipe = meal.recipeId ? recipes.find(r => r.id === meal.recipeId) : null;
   
@@ -764,4 +764,4 @@ function DraggableMealItem({ meal, onDelete, isDraggable, onRecipeClick }: { mea
       )}
     </div>
   );
-}
+});

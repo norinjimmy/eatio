@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import BottomNav from "./BottomNav";
 import { useTranslation } from "@/lib/i18n";
 import { Button } from "./ui/button";
+import { InviteNotifications } from "./InviteNotifications";
 import eatioLogo from "@assets/the-one-on-the-top-left-with-the-fork-an_ikM_tG1FQlKT7lm80e_N_1768160135743.jpeg";
 
 export default function Layout({ children }: { children: ReactNode }) {
@@ -21,14 +22,17 @@ export default function Layout({ children }: { children: ReactNode }) {
             Eatio
           </h1>
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={toggleLang}
-          className="text-xs font-semibold rounded-full px-3 h-8 bg-secondary text-secondary-foreground hover:bg-secondary/80"
-        >
-          {language === 'sv' ? '🇸🇪 SV' : '🇬🇧 EN'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <InviteNotifications />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleLang}
+            className="text-xs font-semibold rounded-full px-3 h-8 bg-secondary text-secondary-foreground hover:bg-secondary/80"
+          >
+            {language === 'sv' ? '🇸🇪 SV' : '🇬🇧 EN'}
+          </Button>
+        </div>
       </header>
       
       <main className="max-w-md mx-auto px-4 py-4 sm:max-w-2xl lg:max-w-4xl animate-in fade-in duration-500">

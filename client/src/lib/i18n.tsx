@@ -153,6 +153,10 @@ type Translations = {
     deleteAccountDesc: string;
     confirmDeleteAccount: string;
     accountDeleted: string;
+    inviteAccepted: string;
+    inviteDeclined: string;
+    unknownUser: string;
+    wantsToShare: string;
   };
 };
 
@@ -296,6 +300,10 @@ const translations: Translations = {
     deleteAccountDesc: "Ta bort ditt konto permanent och all tillhörande data",
     confirmDeleteAccount: "Är du säker på att du vill radera ditt konto? Detta kan inte ångras.",
     accountDeleted: "Ditt konto har raderats",
+    inviteAccepted: "Inbjudan accepterad",
+    inviteDeclined: "Inbjudan avvisad",
+    unknownUser: "Okänd användare",
+    wantsToShare: "vill dela sin måltidsplan med dig",
   },
   en: {
     home: "Home",
@@ -436,6 +444,10 @@ const translations: Translations = {
     deleteAccountDesc: "Permanently remove your account and all associated data",
     confirmDeleteAccount: "Are you sure you want to delete your account? This cannot be undone.",
     accountDeleted: "Your account has been deleted",
+    inviteAccepted: "Invitation accepted",
+    inviteDeclined: "Invitation declined",
+    unknownUser: "Unknown user",
+    wantsToShare: "wants to share their meal plan with you",
   }
 };
 
