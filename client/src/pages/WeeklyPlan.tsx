@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useTranslation } from "@/lib/i18n";
-import { useStore, Meal } from "@/lib/store";
+import { useStore, Meal, Recipe } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,36 @@ import { Plus, X, Utensils, Coffee, Move } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+// Simple fuzzy match - checks if all characters in query appear in order in target
+function fuzzyMatch(query: string, target: string): { match: boolean; score: number } {
+  const q = query.toLowerCase();
+  const t = target.toLowerCase();
+  
+  if (t.includes(q)) {
+    return { match: true, score: 100 - t.indexOf(q) }; // Exact substring match gets high score
+  }
+  
+  let qi = 0;
+  let consecutiveMatches = 0;
+  let maxConsecutive = 0;
+  
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) {
+      qi++;
+      consecutiveMatches++;
+      maxConsecutive = Math.max(maxConsecutive, consecutiveMatches);
+    } else {
+      consecutiveMatches = 0;
+    }
+  }
+  
+  if (qi === q.length) {
+    return { match: true, score: maxConsecutive * 10 + (q.length / t.length) * 50 };
+  }
+  
+  return { match: false, score: 0 };
+}
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -31,6 +61,25 @@ export default function WeeklyPlan() {
   const [mealToMove, setMealToMove] = useState<Meal | null>(null);
   const [moveTargetDay, setMoveTargetDay] = useState<string>("");
   const [moveTargetType, setMoveTargetType] = useState<'lunch' | 'dinner'>("lunch");
+  
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Get filtered and sorted recipe suggestions based on input
+  const suggestions = useMemo(() => {
+    if (!newMealName || newMealName.length < 1) return [];
+    
+    const matches = recipes
+      .map(recipe => ({
+        recipe,
+        ...fuzzyMatch(newMealName, recipe.name)
+      }))
+      .filter(r => r.match)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+    
+    return matches.map(m => m.recipe);
+  }, [newMealName, recipes]);
 
   const handleAddMeal = () => {
     if (!newMealName && !selectedRecipeId) return;
@@ -187,12 +236,48 @@ export default function WeeklyPlan() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>{t("recipeName")}</Label>
-              <Input 
-                value={newMealName} 
-                onChange={(e) => { setNewMealName(e.target.value); setSelectedRecipeId(""); }}
-                placeholder="Type name or select below..."
-                className="rounded-xl bg-muted/30"
-              />
+              <div className="relative">
+                <Input 
+                  ref={inputRef}
+                  value={newMealName} 
+                  onChange={(e) => { 
+                    setNewMealName(e.target.value); 
+                    setSelectedRecipeId(""); 
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => {
+                    // Delay to allow click on suggestion
+                    setTimeout(() => setShowSuggestions(false), 150);
+                  }}
+                  placeholder="Type name or select below..."
+                  className="rounded-xl bg-muted/30"
+                  data-testid="input-meal-name"
+                  autoComplete="off"
+                />
+                {/* Autocomplete suggestions dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                    {suggestions.map((recipe) => (
+                      <button
+                        key={recipe.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setNewMealName(recipe.name);
+                          setSelectedRecipeId(recipe.id);
+                          setShowSuggestions(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+                        data-testid={`suggestion-${recipe.id}`}
+                      >
+                        <span className="flex-1">{recipe.name}</span>
+                        <span className="text-xs text-muted-foreground">{recipe.ingredients.length} ing.</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -201,7 +286,7 @@ export default function WeeklyPlan() {
                 {recipes.slice(0, 5).map(r => (
                   <button
                     key={r.id}
-                    onClick={() => { setSelectedRecipeId(r.id); setNewMealName(r.name); }}
+                    onClick={() => { setSelectedRecipeId(r.id); setNewMealName(r.name); setShowSuggestions(false); }}
                     className={cn(
                       "text-xs px-3 py-1.5 rounded-full border transition-colors",
                       selectedRecipeId === r.id 
