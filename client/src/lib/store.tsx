@@ -13,7 +13,7 @@ interface StoreContextType {
   updateRecipe: (id: number, updates: Partial<Recipe>) => Promise<void>;
   deleteRecipe: (id: number) => Promise<void>;
   toggleFavorite: (id: number) => Promise<void>;
-  addMeal: (meal: { day: string; type: string; name: string; notes?: string; recipeId?: number }) => Promise<void>;
+  addMeal: (meal: { day: string; type: string; name: string; notes?: string; recipeId?: number; weekStart?: string }) => Promise<void>;
   updateMeal: (id: number, updates: Partial<Meal>) => Promise<void>;
   deleteMeal: (id: number) => Promise<void>;
   moveMeal: (id: number, newDay: string, newType: string) => Promise<void>;
@@ -85,7 +85,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   });
 
   const createMealMutation = useMutation({
-    mutationFn: (data: { day: string; type: string; name: string; notes?: string; recipeId?: number }) =>
+    mutationFn: (data: { day: string; type: string; name: string; notes?: string; recipeId?: number; weekStart?: string }) =>
       apiRequest('POST', '/api/meals', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/meals'] }),
   });
@@ -153,7 +153,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addMeal = async (meal: { day: string; type: string; name: string; notes?: string; recipeId?: number }) => {
+  const addMeal = async (meal: { day: string; type: string; name: string; notes?: string; recipeId?: number; weekStart?: string }) => {
     await createMealMutation.mutateAsync(meal);
     if (meal.recipeId) {
       const recipe = recipes.find(r => r.id === meal.recipeId);

@@ -23,6 +23,7 @@ export const meals = pgTable("meals", {
   name: text("name").notNull(),
   notes: text("notes"),
   recipeId: integer("recipe_id"),
+  weekStart: text("week_start"),
 });
 
 // Grocery Items

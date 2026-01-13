@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, X, Utensils, Coffee, GripVertical, ArrowLeft, Users, Archive, Clock } from "lucide-react";
+import { Plus, X, Utensils, Coffee, GripVertical, ArrowLeft, Users, Archive, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +15,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { MealPlanShare } from "@shared/schema";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { Link } from "wouter";
+import { startOfWeek, addWeeks, format, getISOWeek } from "date-fns";
+import { sv, enUS } from "date-fns/locale";
 
 // Simple fuzzy match - checks if all characters in query appear in order in target
 function fuzzyMatch(query: string, target: string): { match: boolean; score: number } {
@@ -48,10 +50,32 @@ function fuzzyMatch(query: string, target: string): { match: boolean; score: num
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+// Helper to get the start of the week (Monday)
+function getWeekStart(date: Date): Date {
+  return startOfWeek(date, { weekStartsOn: 1 });
+}
+
+// Format weekStart as ISO date string (YYYY-MM-DD)
+function formatWeekStartDate(date: Date): string {
+  return format(date, 'yyyy-MM-dd');
+}
+
 export default function WeeklyPlan() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { meals, addMeal, deleteMeal, moveMeal, recipes, addIngredientsToGrocery, groceryItems, deleteItemsByMeal, settings } = useStore();
   const { toast } = useToast();
+  
+  // Week navigation state
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => getWeekStart(new Date()));
+  const currentWeekStart = useMemo(() => getWeekStart(new Date()), []);
+  const isCurrentWeek = formatWeekStartDate(selectedWeekStart) === formatWeekStartDate(currentWeekStart);
+  const weekNumber = getISOWeek(selectedWeekStart);
+  const selectedWeekStartStr = formatWeekStartDate(selectedWeekStart);
+  const dateLocale = language === 'sv' ? sv : enUS;
+  
+  const goToPreviousWeek = () => setSelectedWeekStart(prev => addWeeks(prev, -1));
+  const goToNextWeek = () => setSelectedWeekStart(prev => addWeeks(prev, 1));
+  const goToCurrentWeek = () => setSelectedWeekStart(getWeekStart(new Date()));
   
   // Check if viewing a shared plan
   const [viewingShare, setViewingShare] = useState<MealPlanShare | null>(() => {
@@ -84,7 +108,17 @@ export default function WeeklyPlan() {
   };
 
   // Use shared meals or own meals depending on what we're viewing
-  const displayMeals = viewingShare ? sharedMeals : meals;
+  // Filter meals by the selected week
+  const allMeals = viewingShare ? sharedMeals : meals;
+  const displayMeals = useMemo(() => {
+    return allMeals.filter(meal => {
+      // Meals without weekStart are considered as current week (for backward compatibility)
+      if (!meal.weekStart) {
+        return isCurrentWeek;
+      }
+      return meal.weekStart === selectedWeekStartStr;
+    });
+  }, [allMeals, selectedWeekStartStr, isCurrentWeek]);
   const isReadOnly = !!viewingShare;
   
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -206,7 +240,8 @@ export default function WeeklyPlan() {
       day: activeDay,
       type: activeType,
       name: name,
-      recipeId: selectedRecipeId || undefined
+      recipeId: selectedRecipeId || undefined,
+      weekStart: selectedWeekStartStr
     });
     
     setNewMealName("");
@@ -244,22 +279,9 @@ export default function WeeklyPlan() {
   const workShift = settings?.workShift || 'day';
   const breakfastDays = settings?.breakfastDays || [];
 
-  // Get current week start date (Monday)
-  const getWeekStart = () => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    const monday = new Date(now.setDate(diff));
-    return monday.toISOString().split('T')[0];
-  };
-
   const archiveMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/week-history/archive', {
-        method: 'POST',
-        body: JSON.stringify({ weekStart: getWeekStart() }),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return apiRequest('POST', '/api/week-history/archive', { weekStart: selectedWeekStartStr });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/week-history'] });
@@ -289,31 +311,50 @@ export default function WeeklyPlan() {
         </div>
       )}
 
-      <div className="mb-6 flex items-center justify-between gap-2">
-        <h2 className="text-2xl font-display font-bold">{t("weeklyPlan")}</h2>
-        <div className="flex items-center gap-2">
-          {!isReadOnly && (
-            <>
-              <Link href="/history">
-                <Button size="sm" variant="outline" className="rounded-full" data-testid="button-history">
-                  <Clock size={16} className="mr-1" /> {t("history")}
+      <div className="mb-6 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-2xl font-display font-bold">{t("weeklyPlan")}</h2>
+          <div className="flex items-center gap-2">
+            {!isReadOnly && (
+              <>
+                <Link href="/history">
+                  <Button size="sm" variant="outline" className="rounded-full" data-testid="button-history">
+                    <Clock size={16} className="mr-1" /> {t("history")}
+                  </Button>
+                </Link>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => archiveMutation.mutate()} 
+                  disabled={archiveMutation.isPending}
+                  className="rounded-full"
+                  data-testid="button-archive-week"
+                >
+                  <Archive size={16} className="mr-1" /> {t("archiveWeek")}
                 </Button>
-              </Link>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => archiveMutation.mutate()} 
-                disabled={archiveMutation.isPending}
-                className="rounded-full"
-                data-testid="button-archive-week"
-              >
-                <Archive size={16} className="mr-1" /> {t("archiveWeek")}
+                <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
+                  <Plus size={18} className="mr-1" /> {t("add")}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center gap-3 bg-card rounded-xl p-2 border border-border/60">
+          <Button size="icon" variant="ghost" onClick={goToPreviousWeek} data-testid="button-previous-week">
+            <ChevronLeft size={20} />
+          </Button>
+          <div className="flex items-center gap-2 min-w-[180px] justify-center">
+            <span className="font-bold text-lg">{t("week")} {weekNumber}</span>
+            {!isCurrentWeek && (
+              <Button size="sm" variant="ghost" onClick={goToCurrentWeek} className="text-xs px-2 text-primary underline" data-testid="button-this-week">
+                {t("thisWeek")}
               </Button>
-              <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
-                <Plus size={18} className="mr-1" /> {t("add")}
-              </Button>
-            </>
-          )}
+            )}
+          </div>
+          <Button size="icon" variant="ghost" onClick={goToNextWeek} data-testid="button-next-week">
+            <ChevronRight size={20} />
+          </Button>
         </div>
       </div>
 

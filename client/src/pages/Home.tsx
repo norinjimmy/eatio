@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useStore, Recipe } from "@/lib/store";
 import { ArrowRight, Utensils, CalendarDays, ShoppingBag, TrendingUp, Plus } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { startOfWeek, format } from "date-fns";
 
 export default function Home() {
   const { t } = useTranslation();
@@ -22,6 +23,12 @@ export default function Home() {
   const [selectedMealType, setSelectedMealType] = useState("Dinner");
   
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  
+  // Current week start for meal planning
+  const currentWeekStart = useMemo(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return format(weekStart, 'yyyy-MM-dd');
+  }, []);
   
   // Get top recipes sorted by usage count
   const topRecipes = [...recipes]
@@ -37,6 +44,7 @@ export default function Home() {
       type: selectedMealType,
       name: selectedRecipe.name,
       recipeId: selectedRecipe.id,
+      weekStart: currentWeekStart,
     });
     
     if (selectedRecipe.ingredients.length > 0) {

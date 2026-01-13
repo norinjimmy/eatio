@@ -138,6 +138,10 @@ type Translations = {
     loading: string;
     history: string;
     mealAdded: string;
+    week: string;
+    previousWeek: string;
+    nextWeek: string;
+    thisWeek: string;
   };
 };
 
@@ -266,6 +270,10 @@ const translations: Translations = {
     loading: "Laddar",
     history: "Historik",
     mealAdded: "Måltid tillagd",
+    week: "Vecka",
+    previousWeek: "Föregående vecka",
+    nextWeek: "Nästa vecka",
+    thisWeek: "Denna vecka",
   },
   en: {
     home: "Home",
@@ -391,6 +399,10 @@ const translations: Translations = {
     loading: "Loading",
     history: "History",
     mealAdded: "Meal added",
+    week: "Week",
+    previousWeek: "Previous week",
+    nextWeek: "Next week",
+    thisWeek: "This week",
   }
 };
 
