@@ -185,6 +185,39 @@ export async function registerRoutes(
         });
       }
       
+      // Fallback: Parse Swedish recipe blogs that list ingredients in plain text
+      if (ingredients.length === 0) {
+        const bodyText = $('article, .entry-content, .post-content, main, body').first().text();
+        
+        // Look for "Ingredienser:" section
+        const ingredientMatch = bodyText.match(/Ingredienser?:?\s*([\s\S]*?)(?:Gör så här|Instruktioner|Tillagning|Steg\s*1|^\s*\d+\.\s)/i);
+        if (ingredientMatch) {
+          const ingredientBlock = ingredientMatch[1];
+          // Split by newlines and filter for ingredient-like lines
+          const lines = ingredientBlock.split(/\n/).map(l => l.trim()).filter(l => l.length > 0 && l.length < 150);
+          
+          // Common Swedish measurement patterns
+          const measurementPattern = /^[\d\.,½¼¾⅓⅔]+\s*(dl|msk|tsk|g|kg|ml|l|st|port|portion|krm)\b|^ca\s*\d|paket|burk|klyfta|knippa/i;
+          const ingredientWords = /pasta|ost|lök|vitlök|grädde|ägg|salt|peppar|smör|olja|mjöl|socker|tomat|paprika|kyckling|nötkött|fläsk|potatis|ris|bröd/i;
+          
+          for (const line of lines) {
+            // Skip headers and non-ingredient lines
+            if (line.match(/^(tips|obs|gör så här|instruktioner|\d+\s*port)/i)) continue;
+            if (line.startsWith('**') && line.endsWith('**')) continue;
+            if (line.startsWith('*') && !line.match(/\d/)) continue;
+            
+            // Check if line looks like an ingredient
+            if (measurementPattern.test(line) || ingredientWords.test(line)) {
+              // Clean up markdown formatting
+              const cleaned = line.replace(/\*\*/g, '').replace(/^\*\s*/, '').trim();
+              if (cleaned.length > 2 && cleaned.length < 150) {
+                ingredients.push(cleaned);
+              }
+            }
+          }
+        }
+      }
+      
       if (!name) {
         name = $('h1').first().text().trim() || 
                $('[itemprop="name"]').first().text().trim() ||
