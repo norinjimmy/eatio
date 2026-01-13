@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogOut, Send, Trash2, Users, Eye, Edit2, Clock, Check, Briefcase, UserCircle, AlertTriangle } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [inviteEmail, setInviteEmail] = useState("");
+  const [invitePermission, setInvitePermission] = useState<'view' | 'edit'>('view');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const workDays = settings?.workDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -41,12 +43,13 @@ export default function SettingsPage() {
   });
 
   const createShareMutation = useMutation({
-    mutationFn: async (email: string) => {
-      return apiRequest('POST', '/api/shares', { email, permission: 'view' });
+    mutationFn: async ({ email, permission }: { email: string; permission: 'view' | 'edit' }) => {
+      return apiRequest('POST', '/api/shares', { email, permission });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/shares'] });
       setInviteEmail("");
+      setInvitePermission('view');
       toast({ title: t("inviteSent") });
     },
   });
@@ -72,7 +75,7 @@ export default function SettingsPage() {
 
   const handleSendInvite = () => {
     if (inviteEmail.trim()) {
-      createShareMutation.mutate(inviteEmail.trim());
+      createShareMutation.mutate({ email: inviteEmail.trim(), permission: invitePermission });
     }
   };
 
@@ -196,8 +199,28 @@ export default function SettingsPage() {
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendInvite()}
+                    className="flex-1"
                     data-testid="input-invite-email"
                   />
+                  <Select value={invitePermission} onValueChange={(v) => setInvitePermission(v as 'view' | 'edit')}>
+                    <SelectTrigger className="w-[140px]" data-testid="select-permission">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="view" data-testid="option-view">
+                        <span className="flex items-center gap-1.5">
+                          <Eye size={14} />
+                          {t("viewOnly")}
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="edit" data-testid="option-edit">
+                        <span className="flex items-center gap-1.5">
+                          <Edit2 size={14} />
+                          {t("canEdit")}
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button 
                     onClick={handleSendInvite} 
                     disabled={!inviteEmail.trim() || createShareMutation.isPending}
