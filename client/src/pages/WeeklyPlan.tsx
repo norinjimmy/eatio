@@ -45,14 +45,14 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 
 export default function WeeklyPlan() {
   const { t } = useTranslation();
-  const { meals, addMeal, deleteMeal, moveMeal, recipes, addIngredientsToGrocery, groceryItems, deleteItemsByMeal } = useStore();
+  const { meals, addMeal, deleteMeal, moveMeal, recipes, addIngredientsToGrocery, groceryItems, deleteItemsByMeal, settings } = useStore();
   const { toast } = useToast();
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeDay, setActiveDay] = useState<string>("Monday");
-  const [activeType, setActiveType] = useState<'breakfast' | 'lunch' | 'dinner'>("lunch");
+  const [activeType, setActiveType] = useState<string>("Lunch");
   const [newMealName, setNewMealName] = useState("");
-  const [selectedRecipeId, setSelectedRecipeId] = useState<string>("");
+  const [selectedRecipeId, setSelectedRecipeId] = useState<number | null>(null);
 
   const [isIngredientConfirmOpen, setIsIngredientConfirmOpen] = useState(false);
   const [pendingIngredients, setPendingIngredients] = useState<string[]>([]);
@@ -60,7 +60,7 @@ export default function WeeklyPlan() {
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [mealToMove, setMealToMove] = useState<Meal | null>(null);
   const [moveTargetDay, setMoveTargetDay] = useState<string>("");
-  const [moveTargetType, setMoveTargetType] = useState<'breakfast' | 'lunch' | 'dinner'>("lunch");
+  const [moveTargetType, setMoveTargetType] = useState<string>("Lunch");
   
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -131,7 +131,7 @@ export default function WeeklyPlan() {
     });
     
     setNewMealName("");
-    setSelectedRecipeId("");
+    setSelectedRecipeId(null);
     setIsAddOpen(false);
     
     if (selectedRecipeId) {
@@ -156,25 +156,14 @@ export default function WeeklyPlan() {
   };
 
   const getMealsForDay = (day: string) => ({
-    breakfast: meals.filter(m => m.day === day && m.type === "breakfast"),
-    lunch: meals.filter(m => m.day === day && m.type === "lunch"),
-    dinner: meals.filter(m => m.day === day && m.type === "dinner"),
+    breakfast: meals.filter(m => m.day === day && m.type === "Breakfast"),
+    lunch: meals.filter(m => m.day === day && m.type === "Lunch"),
+    dinner: meals.filter(m => m.day === day && m.type === "Dinner"),
   });
 
-  const [workDays] = useState<string[]>(() => {
-    const saved = localStorage.getItem('app-work-days');
-    return saved ? JSON.parse(saved) : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-  });
-
-  const [workShift] = useState<'day' | 'evening'>(() => {
-    const saved = localStorage.getItem('app-work-shift');
-    return (saved as 'day' | 'evening') || 'day';
-  });
-
-  const [breakfastDays] = useState<string[]>(() => {
-    const saved = localStorage.getItem('app-breakfast-days');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const workDays = settings?.workDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  const workShift = settings?.workShift || 'day';
+  const breakfastDays = settings?.breakfastDays || [];
 
   return (
     <Layout>
@@ -331,7 +320,7 @@ export default function WeeklyPlan() {
                   value={newMealName} 
                   onChange={(e) => { 
                     setNewMealName(e.target.value); 
-                    setSelectedRecipeId(""); 
+                    setSelectedRecipeId(null); 
                     setShowSuggestions(true);
                   }}
                   onFocus={() => setShowSuggestions(true)}

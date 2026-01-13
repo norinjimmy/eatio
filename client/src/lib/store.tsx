@@ -1,291 +1,220 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-
-// Types
-export interface Recipe {
-  id: string;
-  name: string;
-  url?: string;
-  ingredients: string[];
-  instructions: string;
-  isFavorite: boolean;
-  usageCount: number;
-}
-
-export interface Meal {
-  id: string;
-  day: string; // "Monday", etc.
-  type: 'breakfast' | 'lunch' | 'dinner';
-  name: string;
-  notes?: string;
-  recipeId?: string;
-}
-
-export interface GroceryItem {
-  id: string;
-  name: string;
-  amount?: number;
-  unit?: string;
-  note?: string;
-  isBought: boolean;
-  isCustom: boolean;
-  sourceMeal?: string;
-}
+import React, { createContext, useContext } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient, apiRequest } from './queryClient';
+import type { Recipe, Meal, GroceryItem, UserSettings } from '@shared/schema';
 
 interface StoreContextType {
   recipes: Recipe[];
   meals: Meal[];
   groceryItems: GroceryItem[];
-  addRecipe: (recipe: Omit<Recipe, 'id' | 'usageCount' | 'isFavorite'>) => void;
-  updateRecipe: (id: string, updates: Partial<Recipe>) => void;
-  deleteRecipe: (id: string) => void;
-  toggleFavorite: (id: string) => void;
-  addMeal: (meal: Omit<Meal, 'id'>) => void;
-  updateMeal: (id: string, updates: Partial<Meal>) => void;
-  deleteMeal: (id: string) => void;
-  moveMeal: (id: string, newDay: string, newType: 'breakfast' | 'lunch' | 'dinner') => void;
-  addGroceryItem: (name: string) => void;
-  addIngredientsToGrocery: (ingredients: string[], sourceMeal?: string) => void;
-  toggleGroceryItem: (id: string) => void;
-  deleteGroceryItem: (id: string) => void;
-  clearBoughtItems: () => void;
-  clearAllItems: () => void;
-  deleteItemsByMeal: (mealName: string) => void;
+  settings: UserSettings | null;
+  isLoading: boolean;
+  addRecipe: (recipe: { name: string; url?: string; ingredients: string[]; instructions: string; isFavorite?: boolean }) => Promise<void>;
+  updateRecipe: (id: number, updates: Partial<Recipe>) => Promise<void>;
+  deleteRecipe: (id: number) => Promise<void>;
+  toggleFavorite: (id: number) => Promise<void>;
+  addMeal: (meal: { day: string; type: string; name: string; notes?: string; recipeId?: number }) => Promise<void>;
+  updateMeal: (id: number, updates: Partial<Meal>) => Promise<void>;
+  deleteMeal: (id: number) => Promise<void>;
+  moveMeal: (id: number, newDay: string, newType: string) => Promise<void>;
+  addGroceryItem: (name: string, isCustom?: boolean, sourceMeal?: string) => Promise<void>;
+  addIngredientsToGrocery: (ingredients: string[], sourceMeal?: string) => Promise<void>;
+  toggleGroceryItem: (id: number) => Promise<void>;
+  deleteGroceryItem: (id: number) => Promise<void>;
+  clearBoughtItems: () => Promise<void>;
+  clearAllItems: () => Promise<void>;
+  deleteItemsByMeal: (mealName: string) => Promise<void>;
   getSourceMeals: () => string[];
-  regenerateGroceryList: () => void;
+  regenerateGroceryList: () => Promise<void>;
+  updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-// Initial Data for Seeding
-const SEED_RECIPES: Recipe[] = [
-  {
-    id: uuidv4(),
-    name: "Köttbullar med potatismos",
-    ingredients: ["Köttfärs 500g", "Ströbröd", "Lök", "Potatis 1kg", "Lingonsylt", "Gräddsås"],
-    instructions: "Blanda färs och ströbröd. Rulla bullar. Stek. Koka potatis och mosa.",
-    isFavorite: true,
-    usageCount: 5,
-  },
-  {
-    id: uuidv4(),
-    name: "Pannkakor",
-    ingredients: ["Mjöl 3dl", "Mjölk 6dl", "Ägg 3st", "Smör", "Sylt"],
-    instructions: "Vispa ihop smeten. Stek tunna pannkakor i smör.",
-    isFavorite: true,
-    usageCount: 12,
-  },
-  {
-    id: uuidv4(),
-    name: "Linssoppa",
-    ingredients: ["Röda linser", "Lök", "Morot", "Grönsaksbuljong", "Krossade tomater"],
-    instructions: "Fräs lök och morot. Häll på linser, tomater och buljong. Koka 15 min.",
-    isFavorite: false,
-    usageCount: 2,
-  },
+const PANTRY_STAPLES = [
+  'salt', 'pepper', 'vatten', 'water', 'peppar',
+  'svartpeppar', 'vitpeppar', 'black pepper', 'white pepper',
+  'olivolja', 'olive oil', 'olja', 'oil',
+  'is', 'ice', 'socker', 'sugar'
 ];
 
+const isPantryStaple = (ingredientName: string): boolean => {
+  const normalized = ingredientName
+    .toLowerCase()
+    .replace(/[(),.:;!?]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  const tokens = normalized.split(' ');
+  
+  return PANTRY_STAPLES.some(staple => {
+    if (tokens.includes(staple)) return true;
+    if (tokens.some(token => token === staple || token.startsWith(staple))) return true;
+    const regex = new RegExp(`\\b${staple}\\b`, 'i');
+    return regex.test(normalized);
+  });
+};
+
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  // State Initialization
-  const [recipes, setRecipes] = useState<Recipe[]>(() => {
-    const saved = localStorage.getItem('app-recipes');
-    return saved ? JSON.parse(saved) : SEED_RECIPES;
+  const recipesQuery = useQuery<Recipe[]>({ queryKey: ['/api/recipes'] });
+  const mealsQuery = useQuery<Meal[]>({ queryKey: ['/api/meals'] });
+  const groceryQuery = useQuery<GroceryItem[]>({ queryKey: ['/api/grocery'] });
+  const settingsQuery = useQuery<UserSettings>({ queryKey: ['/api/settings'] });
+
+  const recipes = recipesQuery.data ?? [];
+  const meals = mealsQuery.data ?? [];
+  const groceryItems = groceryQuery.data ?? [];
+  const settings = settingsQuery.data ?? null;
+  const isLoading = recipesQuery.isLoading || mealsQuery.isLoading || groceryQuery.isLoading;
+
+  const createRecipeMutation = useMutation({
+    mutationFn: (data: { name: string; url?: string; ingredients: string[]; instructions: string; isFavorite?: boolean }) =>
+      apiRequest('POST', '/api/recipes', data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/recipes'] }),
   });
 
-  const [meals, setMeals] = useState<Meal[]>(() => {
-    const saved = localStorage.getItem('app-meals');
-    return saved ? JSON.parse(saved) : [];
+  const updateRecipeMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: number; updates: Partial<Recipe> }) =>
+      apiRequest('PATCH', `/api/recipes/${id}`, updates),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/recipes'] }),
   });
 
-  const [groceryItems, setGroceryItems] = useState<GroceryItem[]>(() => {
-    const saved = localStorage.getItem('app-grocery');
-    return saved ? JSON.parse(saved) : [];
+  const deleteRecipeMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/recipes/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/recipes'] }),
   });
 
-  // Persistence Effects
-  useEffect(() => { localStorage.setItem('app-recipes', JSON.stringify(recipes)); }, [recipes]);
-  useEffect(() => { localStorage.setItem('app-meals', JSON.stringify(meals)); }, [meals]);
-  useEffect(() => { localStorage.setItem('app-grocery', JSON.stringify(groceryItems)); }, [groceryItems]);
+  const createMealMutation = useMutation({
+    mutationFn: (data: { day: string; type: string; name: string; notes?: string; recipeId?: number }) =>
+      apiRequest('POST', '/api/meals', data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/meals'] }),
+  });
 
-  // Actions
-  const addRecipe = (data: Omit<Recipe, 'id' | 'usageCount' | 'isFavorite'>) => {
-    const newRecipe: Recipe = {
-      ...data,
-      id: uuidv4(),
-      usageCount: 0,
-      isFavorite: false,
-    };
-    setRecipes(prev => [...prev, newRecipe]);
+  const updateMealMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: number; updates: Partial<Meal> }) =>
+      apiRequest('PATCH', `/api/meals/${id}`, updates),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/meals'] }),
+  });
+
+  const deleteMealMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/meals/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/meals'] }),
+  });
+
+  const createGroceryMutation = useMutation({
+    mutationFn: (data: { name: string; isCustom?: boolean; sourceMeal?: string }) =>
+      apiRequest('POST', '/api/grocery', data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/grocery'] }),
+  });
+
+  const updateGroceryMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: number; updates: Partial<GroceryItem> }) =>
+      apiRequest('PATCH', `/api/grocery/${id}`, updates),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/grocery'] }),
+  });
+
+  const deleteGroceryMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/grocery/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/grocery'] }),
+  });
+
+  const clearAllGroceryMutation = useMutation({
+    mutationFn: () => apiRequest('DELETE', '/api/grocery'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/grocery'] }),
+  });
+
+  const deleteByMealMutation = useMutation({
+    mutationFn: (mealName: string) => apiRequest('DELETE', `/api/grocery/by-meal/${encodeURIComponent(mealName)}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/grocery'] }),
+  });
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: (data: Partial<UserSettings>) =>
+      apiRequest('PUT', '/api/settings', data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/settings'] }),
+  });
+
+  const addRecipe = async (recipe: { name: string; url?: string; ingredients: string[]; instructions: string; isFavorite?: boolean }) => {
+    await createRecipeMutation.mutateAsync(recipe);
   };
 
-  const updateRecipe = (id: string, updates: Partial<Recipe>) => {
-    setRecipes(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+  const updateRecipe = async (id: number, updates: Partial<Recipe>) => {
+    await updateRecipeMutation.mutateAsync({ id, updates });
   };
 
-  const deleteRecipe = (id: string) => {
-    setRecipes(prev => prev.filter(r => r.id !== id));
-    // Also remove reference from meals
-    setMeals(prev => prev.map(m => m.recipeId === id ? { ...m, recipeId: undefined } : m));
+  const deleteRecipe = async (id: number) => {
+    await deleteRecipeMutation.mutateAsync(id);
   };
 
-  const toggleFavorite = (id: string) => {
-    setRecipes(prev => prev.map(r => r.id === id ? { ...r, isFavorite: !r.isFavorite } : r));
-  };
-
-  const addMeal = (data: Omit<Meal, 'id'>) => {
-    const newMeal: Meal = { ...data, id: uuidv4() };
-    setMeals(prev => [...prev, newMeal]);
-    
-    // If it's a recipe, increment usage
-    if (data.recipeId) {
-      setRecipes(prev => prev.map(r => r.id === data.recipeId ? { ...r, usageCount: r.usageCount + 1 } : r));
+  const toggleFavorite = async (id: number) => {
+    const recipe = recipes.find(r => r.id === id);
+    if (recipe) {
+      await updateRecipe(id, { isFavorite: !recipe.isFavorite });
     }
   };
 
-  const updateMeal = (id: string, updates: Partial<Meal>) => {
-    setMeals(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+  const addMeal = async (meal: { day: string; type: string; name: string; notes?: string; recipeId?: number }) => {
+    await createMealMutation.mutateAsync(meal);
+    if (meal.recipeId) {
+      const recipe = recipes.find(r => r.id === meal.recipeId);
+      if (recipe) {
+        await updateRecipe(meal.recipeId, { usageCount: recipe.usageCount + 1 });
+      }
+    }
   };
 
-  const deleteMeal = (id: string) => {
-    setMeals(prev => prev.filter(m => m.id !== id));
+  const updateMeal = async (id: number, updates: Partial<Meal>) => {
+    await updateMealMutation.mutateAsync({ id, updates });
   };
 
-  const moveMeal = (id: string, newDay: string, newType: 'breakfast' | 'lunch' | 'dinner') => {
-    setMeals(prev => prev.map(m => m.id === id ? { ...m, day: newDay, type: newType } : m));
+  const deleteMeal = async (id: number) => {
+    await deleteMealMutation.mutateAsync(id);
   };
 
-  // Grocery Logic
-  const addGroceryItem = (name: string) => {
-    setGroceryItems(prev => [
-      ...prev,
-      { id: uuidv4(), name, isBought: false, isCustom: true }
-    ]);
+  const moveMeal = async (id: number, newDay: string, newType: string) => {
+    await updateMeal(id, { day: newDay, type: newType });
   };
 
-  const toggleGroceryItem = (id: string) => {
-    setGroceryItems(prev => prev.map(i => i.id === id ? { ...i, isBought: !i.isBought } : i));
+  const addGroceryItem = async (name: string, isCustom = true, sourceMeal?: string) => {
+    await createGroceryMutation.mutateAsync({ name, isCustom, sourceMeal });
   };
 
-  const deleteGroceryItem = (id: string) => {
-    setGroceryItems(prev => prev.filter(i => i.id !== id));
+  const addIngredientsToGrocery = async (ingredients: string[], sourceMeal?: string) => {
+    const filteredIngredients = ingredients.filter(ing => !isPantryStaple(ing));
+    for (const ing of filteredIngredients) {
+      const exists = groceryItems.find(item => 
+        item.name.toLowerCase() === ing.toLowerCase() && !item.isBought
+      );
+      if (!exists) {
+        await addGroceryItem(ing, false, sourceMeal);
+      }
+    }
   };
 
-  // Common pantry items to ignore (always have at home)
-  const PANTRY_STAPLES = [
-    'salt', 'pepper', 'vatten', 'water', 'peppar',
-    'svartpeppar', 'vitpeppar', 'black pepper', 'white pepper',
-    'olivolja', 'olive oil', 'olja', 'oil',
-    'is', 'ice', 'socker', 'sugar'
-  ];
-
-  const isPantryStaple = (ingredientName: string): boolean => {
-    // Normalize: lowercase, remove punctuation, split into tokens
-    const normalized = ingredientName
-      .toLowerCase()
-      .replace(/[(),.:;!?]/g, ' ')  // Replace punctuation with spaces
-      .replace(/\s+/g, ' ')          // Collapse multiple spaces
-      .trim();
-    
-    // Split into tokens and check if any token matches a pantry staple
-    const tokens = normalized.split(' ');
-    
-    return PANTRY_STAPLES.some(staple => {
-      // Check if staple appears as a standalone token
-      if (tokens.includes(staple)) return true;
-      
-      // Check if any token starts with the staple (handles "saltet", "peppar,")
-      if (tokens.some(token => token === staple || token.startsWith(staple))) return true;
-      
-      // Check if the full normalized string contains the staple as a word
-      const regex = new RegExp(`\\b${staple}\\b`, 'i');
-      return regex.test(normalized);
-    });
+  const toggleGroceryItem = async (id: number) => {
+    const item = groceryItems.find(i => i.id === id);
+    if (item) {
+      await updateGroceryMutation.mutateAsync({ id, updates: { isBought: !item.isBought } });
+    }
   };
 
-  const addIngredientsToGrocery = (ingredients: string[]) => {
-    setGroceryItems(prev => {
-      let newList = [...prev];
-      
-      // Filter out pantry staples
-      const filteredIngredients = ingredients.filter(ing => !isPantryStaple(ing));
-      
-      filteredIngredients.forEach(rawIng => {
-        // Parse ingredient: "Milk 1 L" -> { name: "milk", amount: 1, unit: "L" }
-        // We need to handle Swedish ingredients better too
-        // "Mjöl 3dl" -> parts: ["Mjöl", "3dl"]
-        const trimmedIng = rawIng.trim();
-        let name = "";
-        let amount: number | undefined;
-        let unit: string | undefined;
-
-        // Try to find a number in the string
-        const match = trimmedIng.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*(.*)$/) || trimmedIng.match(/^(.+?)(\d+(?:\.\d+)?)\s*(.*)$/);
-        
-        if (match) {
-          name = match[1].trim().toLowerCase();
-          amount = parseFloat(match[2]);
-          unit = match[3].trim().toLowerCase();
-        } else {
-          name = trimmedIng.toLowerCase();
-        }
-
-        // Normalization: remove plural 'er' or 'ar' and 's' at the end for basic matching
-        const normalize = (s: string) => s.replace(/(er|ar|s)$/, '').trim();
-        const normalizedName = normalize(name);
-
-        const existingIndex = newList.findIndex(item => {
-          if (item.isBought) return false;
-          const itemNameMatch = item.name.toLowerCase().match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*(.*)$/) || item.name.toLowerCase().match(/^(.+?)(\d+(?:\.\d+)?)\s*(.*)$/);
-          const existingBaseName = itemNameMatch ? itemNameMatch[1].trim() : item.name.toLowerCase();
-          return normalize(existingBaseName) === normalizedName;
-        });
-
-        if (existingIndex > -1) {
-          const existing = newList[existingIndex];
-          // If both have amounts and same unit, merge
-          if (amount && existing.amount && (existing.unit || "") === (unit || "")) {
-            const newAmount = existing.amount + amount;
-            const newUnit = unit || existing.unit || "";
-            newList[existingIndex] = {
-              ...existing,
-              amount: newAmount,
-              name: `${name.charAt(0).toUpperCase() + name.slice(1)} ${newAmount}${newUnit ? " " + newUnit : ""}`
-            };
-          } else if (!amount && !existing.amount) {
-            // Both are just names, already matched
-          } else {
-            // Conflict in units or missing amounts, just add a note
-            newList[existingIndex] = {
-              ...existing,
-              note: existing.note ? `${existing.note}, check quantity` : "check quantity"
-            };
-          }
-        } else {
-          newList.push({
-            id: uuidv4(),
-            name: rawIng,
-            amount,
-            unit,
-            isBought: false,
-            isCustom: false
-          });
-        }
-      });
-
-      return newList;
-    });
+  const deleteGroceryItem = async (id: number) => {
+    await deleteGroceryMutation.mutateAsync(id);
   };
 
-  const clearBoughtItems = () => {
-    setGroceryItems(prev => prev.filter(i => !i.isBought));
+  const clearBoughtItems = async () => {
+    const boughtItems = groceryItems.filter(i => i.isBought);
+    for (const item of boughtItems) {
+      await deleteGroceryItem(item.id);
+    }
   };
 
-  const clearAllItems = () => {
-    setGroceryItems([]);
+  const clearAllItems = async () => {
+    await clearAllGroceryMutation.mutateAsync();
   };
 
-  const deleteItemsByMeal = (mealName: string) => {
-    setGroceryItems(prev => prev.filter(i => i.sourceMeal !== mealName));
+  const deleteItemsByMeal = async (mealName: string) => {
+    await deleteByMealMutation.mutateAsync(mealName);
   };
 
   const getSourceMeals = (): string[] => {
@@ -296,47 +225,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return Array.from(mealsSet);
   };
 
-  const regenerateGroceryList = () => {
-    // 1. Keep custom items that are NOT bought (optional logic, but let's keep all custom)
+  const regenerateGroceryList = async () => {
     const currentCustom = groceryItems.filter(i => i.isCustom);
+    await clearAllItems();
     
-    // 2. Generate items from meals in the current plan
-    const newItems: GroceryItem[] = [];
+    for (const item of currentCustom) {
+      await addGroceryItem(item.name, true);
+    }
     
-    meals.forEach(meal => {
+    for (const meal of meals) {
       if (meal.recipeId) {
         const recipe = recipes.find(r => r.id === meal.recipeId);
         if (recipe) {
-          recipe.ingredients.forEach(ing => {
-            // Skip pantry staples
-            if (isPantryStaple(ing)) return;
-            
-            // Very simple duplicate check
-            const exists = newItems.find(ni => ni.name === ing) || currentCustom.find(ci => ci.name === ing);
-            if (!exists) {
-              newItems.push({
-                id: uuidv4(),
-                name: ing,
-                isBought: false,
-                isCustom: false,
-                sourceMeal: meal.name
-              });
+          for (const ing of recipe.ingredients) {
+            if (!isPantryStaple(ing)) {
+              await addGroceryItem(ing, false, meal.name);
             }
-          });
+          }
         }
       }
-    });
+    }
+  };
 
-    setGroceryItems([...currentCustom, ...newItems]);
+  const updateSettings = async (newSettings: Partial<UserSettings>) => {
+    await updateSettingsMutation.mutateAsync({
+      ...settings,
+      ...newSettings,
+    });
   };
 
   return (
     <StoreContext.Provider value={{
-      recipes, meals, groceryItems,
+      recipes, meals, groceryItems, settings, isLoading,
       addRecipe, updateRecipe, deleteRecipe, toggleFavorite,
       addMeal, updateMeal, deleteMeal, moveMeal,
       addGroceryItem, addIngredientsToGrocery, toggleGroceryItem, deleteGroceryItem, 
-      clearBoughtItems, clearAllItems, deleteItemsByMeal, getSourceMeals, regenerateGroceryList
+      clearBoughtItems, clearAllItems, deleteItemsByMeal, getSourceMeals, regenerateGroceryList,
+      updateSettings
     }}>
       {children}
     </StoreContext.Provider>
@@ -350,3 +275,5 @@ export function useStore() {
   }
   return context;
 }
+
+export type { Recipe, Meal, GroceryItem, UserSettings };

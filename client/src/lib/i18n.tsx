@@ -94,6 +94,13 @@ type Translations = {
     itemsCleared: string;
     removeIngredientsFromGrocery: string;
     yesRemove: string;
+    login: string;
+    logout: string;
+    welcomeMessage: string;
+    loginHint: string;
+    planMealsDesc: string;
+    manageRecipesDesc: string;
+    groceryListDesc: string;
   };
 };
 
@@ -178,6 +185,13 @@ const translations: Translations = {
     itemsCleared: "Varor raderade",
     removeIngredientsFromGrocery: "Vill du även ta bort ingredienserna från inköpslistan?",
     yesRemove: "Ja, ta bort",
+    login: "Logga in",
+    logout: "Logga ut",
+    welcomeMessage: "Din assistent för familjens matplanering",
+    loginHint: "Logga in med Google, GitHub, Apple eller e-post",
+    planMealsDesc: "Planera familjens måltider för hela veckan",
+    manageRecipesDesc: "Spara och organisera dina favoritrecept",
+    groceryListDesc: "Skapa inköpslistor från din matplan",
   },
   en: {
     home: "Home",
@@ -259,6 +273,13 @@ const translations: Translations = {
     itemsCleared: "Items cleared",
     removeIngredientsFromGrocery: "Do you also want to remove the ingredients from the grocery list?",
     yesRemove: "Yes, remove",
+    login: "Log in",
+    logout: "Log out",
+    welcomeMessage: "Your family meal planning assistant",
+    loginHint: "Sign in with Google, GitHub, Apple, or email",
+    planMealsDesc: "Plan your family meals for the entire week",
+    manageRecipesDesc: "Save and organize your favorite recipes",
+    groceryListDesc: "Generate shopping lists from your meal plan",
   }
 };
 

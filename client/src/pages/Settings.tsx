@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
+import { useStore } from "@/lib/store";
+import { useAuth } from "@/hooks/use-auth";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -12,50 +15,69 @@ export type WorkShift = 'day' | 'evening';
 
 export default function SettingsPage() {
   const { t } = useTranslation();
-  const [workDays, setWorkDays] = useState<string[]>(() => {
-    const saved = localStorage.getItem('app-work-days');
-    return saved ? JSON.parse(saved) : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-  });
+  const { settings, updateSettings } = useStore();
+  const { user } = useAuth();
 
-  const [workShift, setWorkShift] = useState<WorkShift>(() => {
-    const saved = localStorage.getItem('app-work-shift');
-    return (saved as WorkShift) || 'day';
-  });
+  const workDays = settings?.workDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  const workShift = (settings?.workShift || 'day') as WorkShift;
+  const breakfastDays = settings?.breakfastDays || [];
 
-  const [breakfastDays, setBreakfastDays] = useState<string[]>(() => {
-    const saved = localStorage.getItem('app-breakfast-days');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  useEffect(() => {
-    localStorage.setItem('app-work-days', JSON.stringify(workDays));
-  }, [workDays]);
-
-  useEffect(() => {
-    localStorage.setItem('app-work-shift', workShift);
-  }, [workShift]);
-
-  useEffect(() => {
-    localStorage.setItem('app-breakfast-days', JSON.stringify(breakfastDays));
-  }, [breakfastDays]);
-
-  const toggleWorkDay = (day: string) => {
-    setWorkDays(prev => 
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-    );
+  const toggleWorkDay = async (day: string) => {
+    const newWorkDays = workDays.includes(day) 
+      ? workDays.filter(d => d !== day) 
+      : [...workDays, day];
+    await updateSettings({ workDays: newWorkDays });
   };
 
-  const toggleBreakfastDay = (day: string) => {
-    setBreakfastDays(prev => 
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-    );
+  const toggleBreakfastDay = async (day: string) => {
+    const newBreakfastDays = breakfastDays.includes(day) 
+      ? breakfastDays.filter(d => d !== day) 
+      : [...breakfastDays, day];
+    await updateSettings({ breakfastDays: newBreakfastDays });
+  };
+
+  const handleShiftChange = async (shift: WorkShift) => {
+    await updateSettings({ workShift: shift });
   };
 
   return (
     <Layout>
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h2 className="text-2xl font-display font-bold">{t("settings")}</h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => { window.location.href = '/api/logout'; }}
+          data-testid="button-logout"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          {t("logout")}
+        </Button>
       </div>
+
+      {user && (
+        <Card className="border-none shadow-sm bg-card mb-6">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-4">
+              {user.profileImageUrl && (
+                <img 
+                  src={user.profileImageUrl} 
+                  alt="Profile" 
+                  className="w-12 h-12 rounded-full"
+                />
+              )}
+              <div>
+                <div className="font-medium">
+                  {user.firstName} {user.lastName}
+                </div>
+                {user.email && (
+                  <div className="text-sm text-muted-foreground">{user.email}</div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-6">
         <Card className="border-none shadow-sm bg-card">
@@ -86,7 +108,7 @@ export default function SettingsPage() {
             <CardDescription>{t("workShiftDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <RadioGroup value={workShift} onValueChange={(v) => setWorkShift(v as WorkShift)}>
+            <RadioGroup value={workShift} onValueChange={(v) => handleShiftChange(v as WorkShift)}>
               <div className="flex items-center space-x-3 py-2">
                 <RadioGroupItem value="day" id="shift-day" data-testid="radio-shift-day" />
                 <Label htmlFor="shift-day" className="font-medium cursor-pointer">

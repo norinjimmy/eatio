@@ -4,21 +4,17 @@ import { useTranslation } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { ArrowRight, Utensils, CalendarDays, ShoppingBag } from "lucide-react";
 import { Link } from "wouter";
-import { useState } from "react";
 
 export default function Home() {
   const { t } = useTranslation();
-  const { meals, recipes, groceryItems } = useStore();
+  const { meals, recipes, groceryItems, settings } = useStore();
 
-  const [workDays] = useState<string[]>(() => {
-    const saved = localStorage.getItem('app-work-days');
-    return saved ? JSON.parse(saved) : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-  });
+  const workDays = settings?.workDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   const todaysMealsList = meals.filter(m => m.day === today);
-  const lunch = todaysMealsList.find(m => m.type === 'lunch');
-  const dinner = todaysMealsList.find(m => m.type === 'dinner');
+  const lunch = todaysMealsList.find(m => m.type === 'Lunch');
+  const dinner = todaysMealsList.find(m => m.type === 'Dinner');
   const isWorkDay = workDays.includes(today);
 
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
