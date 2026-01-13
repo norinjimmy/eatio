@@ -15,7 +15,7 @@ export interface Recipe {
 export interface Meal {
   id: string;
   day: string; // "Monday", etc.
-  type: 'lunch' | 'dinner';
+  type: 'breakfast' | 'lunch' | 'dinner';
   name: string;
   notes?: string;
   recipeId?: string;
@@ -43,7 +43,7 @@ interface StoreContextType {
   addMeal: (meal: Omit<Meal, 'id'>) => void;
   updateMeal: (id: string, updates: Partial<Meal>) => void;
   deleteMeal: (id: string) => void;
-  moveMeal: (id: string, newDay: string, newType: 'lunch' | 'dinner') => void;
+  moveMeal: (id: string, newDay: string, newType: 'breakfast' | 'lunch' | 'dinner') => void;
   addGroceryItem: (name: string) => void;
   addIngredientsToGrocery: (ingredients: string[], sourceMeal?: string) => void;
   toggleGroceryItem: (id: string) => void;
@@ -150,7 +150,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setMeals(prev => prev.filter(m => m.id !== id));
   };
 
-  const moveMeal = (id: string, newDay: string, newType: 'lunch' | 'dinner') => {
+  const moveMeal = (id: string, newDay: string, newType: 'breakfast' | 'lunch' | 'dinner') => {
     setMeals(prev => prev.map(m => m.id === id ? { ...m, day: newDay, type: newType } : m));
   };
 
