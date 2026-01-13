@@ -303,24 +303,41 @@ export async function registerRoutes(
             content: [
               {
                 type: 'text',
-                text: `You are a precise OCR system. Read this recipe image and extract EXACTLY what is written. Do not guess or approximate - read the exact text.
+                text: `You are a precise OCR system for Swedish recipe books. Read this recipe image and extract EXACTLY what is written.
 
 Return JSON format:
 {
   "name": "Recipe name exactly as written",
-  "ingredients": ["ingredient 1 with exact quantity", "ingredient 2 with exact quantity", ...],
+  "ingredients": ["ingredient 1", "ingredient 2", ...],
   "instructions": "Instructions exactly as written"
 }
 
-CRITICAL RULES:
-- Read quantities EXACTLY as written (e.g., "50 g" not "30 g", "1 dl" not "0.5 dl")
-- Include ALL ingredients, including toppings and garnishes
-- Keep percentages exact (e.g., "9%" not "3%")
-- Keep descriptors like "sockerfritt" (sugar-free), "extra", "lite" (a little)
-- If there are sections like "Topping:" include those ingredients too
-- Keep the original Swedish text exactly as written
-- If you cannot read something, write "[oläsligt]" instead of guessing
+CRITICAL RULES FOR INGREDIENTS:
+- Include EVERY ingredient from ALL sections (main ingredients, "Topping:", "Garnering:", etc.)
+- For section headers like "Topping:", include them as a label, e.g., "--- Topping ---"
+- Read quantities EXACTLY: "50 g" not "30 g", "1 dl" not "0.5 dl", "9%" not "3%"
+- Keep ALL descriptors: "sockerfritt" (sugar-free), "extra hallon", "lite salt"
+- Include portion info like "1 portion" as the first ingredient if present
+- Do NOT summarize or shorten - copy exactly what you see
 
+Example for a recipe with topping:
+{
+  "ingredients": [
+    "1 portion",
+    "1 dl havregryn",
+    "50 g hallon",
+    "2 dl vatten",
+    "lite salt och sötströ",
+    "--- Topping ---",
+    "1 dl (35 g) proteinpulver (kasein vanilj)",
+    "25 g cream cheese (9%)",
+    "ca 1 dl vatten",
+    "några extra hallon",
+    "1 sockerfritt digestivekex"
+  ]
+}
+
+If you cannot read something clearly, write "[oläsligt]" instead of guessing.
 Only return the JSON, no other text.`
               },
               {
