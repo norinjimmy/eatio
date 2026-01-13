@@ -101,6 +101,25 @@ type Translations = {
     planMealsDesc: string;
     manageRecipesDesc: string;
     groceryListDesc: string;
+    sharing: string;
+    sharingDesc: string;
+    inviteFamily: string;
+    enterEmail: string;
+    sendInvite: string;
+    pendingInvites: string;
+    acceptedShares: string;
+    sharedWithMe: string;
+    viewPlan: string;
+    permission: string;
+    viewOnly: string;
+    canEdit: string;
+    revoke: string;
+    inviteSent: string;
+    noShares: string;
+    noSharedWithMe: string;
+    acceptInvite: string;
+    viewingPlanOf: string;
+    backToMyPlan: string;
   };
 };
 
@@ -192,6 +211,25 @@ const translations: Translations = {
     planMealsDesc: "Planera familjens måltider för hela veckan",
     manageRecipesDesc: "Spara och organisera dina favoritrecept",
     groceryListDesc: "Skapa inköpslistor från din matplan",
+    sharing: "Delning",
+    sharingDesc: "Bjud in familjemedlemmar att se din veckoplan",
+    inviteFamily: "Bjud in familjemedlem",
+    enterEmail: "E-postadress",
+    sendInvite: "Skicka inbjudan",
+    pendingInvites: "Väntande inbjudningar",
+    acceptedShares: "Aktiva delningar",
+    sharedWithMe: "Delat med mig",
+    viewPlan: "Visa plan",
+    permission: "Behörighet",
+    viewOnly: "Kan visa",
+    canEdit: "Kan redigera",
+    revoke: "Ta bort",
+    inviteSent: "Inbjudan skickad",
+    noShares: "Inga delningar ännu",
+    noSharedWithMe: "Ingen har delat sin plan med dig ännu",
+    acceptInvite: "Acceptera inbjudan",
+    viewingPlanOf: "Visar plan för",
+    backToMyPlan: "Tillbaka till min plan",
   },
   en: {
     home: "Home",
@@ -280,6 +318,25 @@ const translations: Translations = {
     planMealsDesc: "Plan your family meals for the entire week",
     manageRecipesDesc: "Save and organize your favorite recipes",
     groceryListDesc: "Generate shopping lists from your meal plan",
+    sharing: "Sharing",
+    sharingDesc: "Invite family members to view your weekly plan",
+    inviteFamily: "Invite family member",
+    enterEmail: "Email address",
+    sendInvite: "Send invite",
+    pendingInvites: "Pending invites",
+    acceptedShares: "Active shares",
+    sharedWithMe: "Shared with me",
+    viewPlan: "View plan",
+    permission: "Permission",
+    viewOnly: "Can view",
+    canEdit: "Can edit",
+    revoke: "Remove",
+    inviteSent: "Invite sent",
+    noShares: "No shares yet",
+    noSharedWithMe: "No one has shared their plan with you yet",
+    acceptInvite: "Accept invite",
+    viewingPlanOf: "Viewing plan of",
+    backToMyPlan: "Back to my plan",
   }
 };
 
