@@ -87,6 +87,20 @@ export const api = {
       },
     },
   },
+  // Scrape recipe from URL
+  scrape: {
+    method: 'POST' as const,
+    path: '/api/scrape-recipe',
+    input: z.object({ url: z.string().url() }),
+    responses: {
+      200: z.object({
+        name: z.string().optional(),
+        ingredients: z.array(z.string()),
+        instructions: z.string().optional(),
+      }),
+      400: errorSchemas.validation,
+    },
+  },
   // Grocery List
   grocery: {
     list: {
