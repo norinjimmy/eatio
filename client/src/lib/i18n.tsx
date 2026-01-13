@@ -81,6 +81,10 @@ type Translations = {
     scanSuccess: string;
     scanFailed: string;
     couldNotScanRecipe: string;
+    clearAll: string;
+    clearByMeal: string;
+    confirmClearAll: string;
+    itemsCleared: string;
   };
 };
 
@@ -152,6 +156,10 @@ const translations: Translations = {
     scanSuccess: "Recept skannat",
     scanFailed: "Kunde inte skanna",
     couldNotScanRecipe: "Kunde inte läsa receptet från bilden",
+    clearAll: "Radera allt",
+    clearByMeal: "Radera per måltid",
+    confirmClearAll: "Är du säker på att du vill radera hela inköpslistan?",
+    itemsCleared: "Varor raderade",
   },
   en: {
     home: "Home",
@@ -220,6 +228,10 @@ const translations: Translations = {
     scanSuccess: "Recipe scanned",
     scanFailed: "Could not scan",
     couldNotScanRecipe: "Could not read recipe from the image",
+    clearAll: "Clear all",
+    clearByMeal: "Clear by meal",
+    confirmClearAll: "Are you sure you want to clear the entire grocery list?",
+    itemsCleared: "Items cleared",
   }
 };
 

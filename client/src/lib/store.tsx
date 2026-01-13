@@ -45,10 +45,13 @@ interface StoreContextType {
   deleteMeal: (id: string) => void;
   moveMeal: (id: string, newDay: string, newType: 'lunch' | 'dinner') => void;
   addGroceryItem: (name: string) => void;
-  addIngredientsToGrocery: (ingredients: string[]) => void;
+  addIngredientsToGrocery: (ingredients: string[], sourceMeal?: string) => void;
   toggleGroceryItem: (id: string) => void;
   deleteGroceryItem: (id: string) => void;
   clearBoughtItems: () => void;
+  clearAllItems: () => void;
+  deleteItemsByMeal: (mealName: string) => void;
+  getSourceMeals: () => string[];
   regenerateGroceryList: () => void;
 }
 
@@ -277,6 +280,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setGroceryItems(prev => prev.filter(i => !i.isBought));
   };
 
+  const clearAllItems = () => {
+    setGroceryItems([]);
+  };
+
+  const deleteItemsByMeal = (mealName: string) => {
+    setGroceryItems(prev => prev.filter(i => i.sourceMeal !== mealName));
+  };
+
+  const getSourceMeals = (): string[] => {
+    const mealsSet = new Set<string>();
+    groceryItems
+      .filter(i => i.sourceMeal && !i.isBought)
+      .forEach(i => mealsSet.add(i.sourceMeal as string));
+    return Array.from(mealsSet);
+  };
+
   const regenerateGroceryList = () => {
     // 1. Keep custom items that are NOT bought (optional logic, but let's keep all custom)
     const currentCustom = groceryItems.filter(i => i.isCustom);
@@ -316,7 +335,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       recipes, meals, groceryItems,
       addRecipe, updateRecipe, deleteRecipe, toggleFavorite,
       addMeal, updateMeal, deleteMeal, moveMeal,
-      addGroceryItem, addIngredientsToGrocery, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, regenerateGroceryList
+      addGroceryItem, addIngredientsToGrocery, toggleGroceryItem, deleteGroceryItem, 
+      clearBoughtItems, clearAllItems, deleteItemsByMeal, getSourceMeals, regenerateGroceryList
     }}>
       {children}
     </StoreContext.Provider>

@@ -4,16 +4,21 @@ import { useTranslation } from "@/lib/i18n";
 import { useStore, GroceryItem } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, RefreshCw, CheckCircle2, Circle } from "lucide-react";
+import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function GroceryList() {
   const { t } = useTranslation();
-  const { groceryItems, addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, regenerateGroceryList } = useStore();
+  const { groceryItems, addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, clearAllItems, deleteItemsByMeal, getSourceMeals, regenerateGroceryList } = useStore();
   const { toast } = useToast();
   
   const [newItem, setNewItem] = useState("");
+  const [isMealDialogOpen, setIsMealDialogOpen] = useState(false);
+  
+  const sourceMeals = getSourceMeals();
 
   const handleAdd = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -37,17 +42,57 @@ export default function GroceryList() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-2xl font-display font-bold">{t("groceryList")}</h2>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRegenerate}
-            className="rounded-full border-primary/20 text-primary hover:bg-primary/5 text-xs"
-          >
-            <RefreshCw size={14} className="mr-1.5" />
-            {t("generatedFromPlan")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRegenerate}
+              className="rounded-full border-primary/20 text-primary hover:bg-primary/5 text-xs"
+            >
+              <RefreshCw size={14} className="mr-1.5" />
+              {t("generatedFromPlan")}
+            </Button>
+            
+            {groceryItems.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" data-testid="button-grocery-menu">
+                    <MoreVertical size={16} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl">
+                  {sourceMeals.length > 0 && (
+                    <>
+                      <DropdownMenuItem 
+                        onClick={() => setIsMealDialogOpen(true)}
+                        className="text-sm"
+                        data-testid="menu-item-clear-by-meal"
+                      >
+                        <X size={14} className="mr-2" />
+                        {t("clearByMeal")}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      if (confirm(t("confirmClearAll"))) {
+                        clearAllItems();
+                        toast({ title: t("itemsCleared") });
+                      }
+                    }}
+                    className="text-sm text-destructive"
+                    data-testid="menu-item-clear-all"
+                  >
+                    <Trash2 size={14} className="mr-2" />
+                    {t("clearAll")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
 
         {/* Add Item Input */}
@@ -93,6 +138,40 @@ export default function GroceryList() {
           </div>
         )}
       </div>
+
+      {/* Clear by Meal Dialog */}
+      <Dialog open={isMealDialogOpen} onOpenChange={setIsMealDialogOpen}>
+        <DialogContent className="rounded-2xl w-[90%] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("clearByMeal")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {sourceMeals.map(mealName => {
+              const count = groceryItems.filter(i => i.sourceMeal === mealName && !i.isBought).length;
+              return (
+                <button
+                  key={mealName}
+                  onClick={() => {
+                    deleteItemsByMeal(mealName);
+                    toast({ title: t("itemsCleared"), description: `${count} ${mealName}` });
+                    if (sourceMeals.length === 1) {
+                      setIsMealDialogOpen(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  data-testid={`button-clear-meal-${mealName}`}
+                >
+                  <span className="font-medium">{mealName}</span>
+                  <span className="text-sm text-muted-foreground">{count} varor</span>
+                </button>
+              );
+            })}
+          </div>
+          <Button variant="outline" onClick={() => setIsMealDialogOpen(false)} className="rounded-xl mt-2">
+            {t("cancel")}
+          </Button>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
