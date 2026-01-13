@@ -167,11 +167,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setGroceryItems(prev => prev.filter(i => i.id !== id));
   };
 
+  // Common pantry items to ignore (always have at home)
+  const PANTRY_STAPLES = [
+    'salt', 'pepper', 'vatten', 'water', 'peppar',
+    'svartpeppar', 'vitpeppar', 'black pepper', 'white pepper',
+    'olivolja', 'olive oil', 'olja', 'oil',
+    'is', 'ice', 'socker', 'sugar'
+  ];
+
+  const isPantryStaple = (ingredientName: string): boolean => {
+    // Normalize: lowercase, remove punctuation, split into tokens
+    const normalized = ingredientName
+      .toLowerCase()
+      .replace(/[(),.:;!?]/g, ' ')  // Replace punctuation with spaces
+      .replace(/\s+/g, ' ')          // Collapse multiple spaces
+      .trim();
+    
+    // Split into tokens and check if any token matches a pantry staple
+    const tokens = normalized.split(' ');
+    
+    return PANTRY_STAPLES.some(staple => {
+      // Check if staple appears as a standalone token
+      if (tokens.includes(staple)) return true;
+      
+      // Check if any token starts with the staple (handles "saltet", "peppar,")
+      if (tokens.some(token => token === staple || token.startsWith(staple))) return true;
+      
+      // Check if the full normalized string contains the staple as a word
+      const regex = new RegExp(`\\b${staple}\\b`, 'i');
+      return regex.test(normalized);
+    });
+  };
+
   const addIngredientsToGrocery = (ingredients: string[]) => {
     setGroceryItems(prev => {
       let newList = [...prev];
       
-      ingredients.forEach(rawIng => {
+      // Filter out pantry staples
+      const filteredIngredients = ingredients.filter(ing => !isPantryStaple(ing));
+      
+      filteredIngredients.forEach(rawIng => {
         // Parse ingredient: "Milk 1 L" -> { name: "milk", amount: 1, unit: "L" }
         // We need to handle Swedish ingredients better too
         // "Mjöl 3dl" -> parts: ["Mjöl", "3dl"]
@@ -254,6 +289,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const recipe = recipes.find(r => r.id === meal.recipeId);
         if (recipe) {
           recipe.ingredients.forEach(ing => {
+            // Skip pantry staples
+            if (isPantryStaple(ing)) return;
+            
             // Very simple duplicate check
             const exists = newItems.find(ni => ni.name === ing) || currentCustom.find(ci => ci.name === ing);
             if (!exists) {
