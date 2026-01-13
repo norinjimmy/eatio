@@ -187,10 +187,26 @@ export async function registerRoutes(
       
       // Fallback: Parse ingredients from raw HTML (handles Swedish blogs with <br> separated ingredients)
       if (ingredients.length === 0) {
-        // Look for ingredient section in raw HTML
-        const ingredientMatch = html.match(/Ingredienser?:?\s*(?:<[^>]*>)?\s*([\s\S]*?)(?:G.r s. h.r|Instruktioner|Tillagning|<strong>\d+\.)/i);
-        if (ingredientMatch) {
-          let ingredientBlock = ingredientMatch[1];
+        // Try multiple patterns for finding ingredient sections
+        const patterns = [
+          // Pattern 1: "Ingredienser:" header
+          /Ingredienser?:?\s*(?:<[^>]*>)?\s*([\s\S]*?)(?:G.r s. h.r|Instruktioner|Tillagning|<strong>\d+\.|Börja med)/i,
+          // Pattern 2: After portion info (e.g., "4 port" or "6 portioner")
+          /\d+\s*port\.?(?:ioner)?<\/\w+>\s*(?:<[^>]*>)*\s*([\s\S]*?)(?:Börja med|Starta med|Gör så här|Instruktioner|Tillagning)/i,
+          // Pattern 3: Content between <em> tags with <br> separators (common blog pattern)
+          /<em>(\d+\s*(?:g|dl|msk|tsk|st|burk)[\s\S]*?)<\/em>/i,
+        ];
+        
+        let ingredientBlock = '';
+        for (const pattern of patterns) {
+          const match = html.match(pattern);
+          if (match && match[1]) {
+            ingredientBlock = match[1];
+            break;
+          }
+        }
+        
+        if (ingredientBlock) {
           // Decode unicode escapes (e.g., \u00f6 -> ö)
           ingredientBlock = ingredientBlock.replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => 
             String.fromCharCode(parseInt(code, 16))
@@ -202,17 +218,20 @@ export async function registerRoutes(
             .replace(/<\/p>/gi, '\n')
             .replace(/<[^>]+>/g, '')
             .replace(/&amp;/g, '&')
-            .replace(/&nbsp;/g, ' ');
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&auml;/g, 'ä')
+            .replace(/&ouml;/g, 'ö')
+            .replace(/&aring;/g, 'å');
           
           const lines = ingredientBlock.split(/\n/).map(l => l.trim()).filter(l => l.length > 2 && l.length < 150);
           
           // Common Swedish measurement patterns
           const measurementPattern = /^[\d\.,½¼¾⅓⅔]+\s*(dl|msk|tsk|g|kg|ml|l|st|port|portion|krm)\b|^ca\s*\d|paket|burk|klyfta|knippa/i;
-          const ingredientWords = /pasta|ost|lök|vitlök|grädde|ägg|salt|peppar|smör|olja|mjöl|socker|tomat|paprika|kyckling|nötkött|fläsk|potatis|ris|bröd|halloumi/i;
+          const ingredientWords = /pasta|ost|lök|vitlök|grädde|ägg|salt|peppar|smör|olja|mjöl|socker|tomat|paprika|kyckling|nötkött|fläsk|potatis|ris|bröd|halloumi|salsiccia|crème|fraiche|buljong/i;
           
           for (const line of lines) {
             // Skip headers and instruction-like lines
-            if (line.match(/^(tips|obs|gör så här|instruktioner|\d+\s*port)/i)) continue;
+            if (line.match(/^(tips|obs|gör så här|instruktioner|\d+\s*port|börja med|starta med)/i)) continue;
             if (line.match(/^\d+\.\s/)) continue; // Numbered instructions
             
             // Check if line looks like an ingredient
