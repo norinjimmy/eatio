@@ -416,7 +416,7 @@ export default function WeeklyPlan() {
               className="rounded-xl bg-primary text-primary-foreground"
               data-testid="button-delete-with-ingredients"
             >
-              {t("yesAdd")}
+              {t("yesRemove")}
             </Button>
             <Button 
               variant="outline" 
