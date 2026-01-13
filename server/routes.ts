@@ -303,15 +303,24 @@ export async function registerRoutes(
             content: [
               {
                 type: 'text',
-                text: `Analyze this recipe image and extract the following information in JSON format:
+                text: `You are a precise OCR system. Read this recipe image and extract EXACTLY what is written. Do not guess or approximate - read the exact text.
+
+Return JSON format:
 {
-  "name": "Recipe name",
-  "ingredients": ["ingredient 1", "ingredient 2", ...],
-  "instructions": "Step by step instructions"
+  "name": "Recipe name exactly as written",
+  "ingredients": ["ingredient 1 with exact quantity", "ingredient 2 with exact quantity", ...],
+  "instructions": "Instructions exactly as written"
 }
 
-Be thorough and include all ingredients you can see. For ingredients, include quantities if visible (e.g., "2 dl mjöl", "500g köttfärs").
-If the recipe is in Swedish, keep the Swedish text. If you cannot read something clearly, make your best guess.
+CRITICAL RULES:
+- Read quantities EXACTLY as written (e.g., "50 g" not "30 g", "1 dl" not "0.5 dl")
+- Include ALL ingredients, including toppings and garnishes
+- Keep percentages exact (e.g., "9%" not "3%")
+- Keep descriptors like "sockerfritt" (sugar-free), "extra", "lite" (a little)
+- If there are sections like "Topping:" include those ingredients too
+- Keep the original Swedish text exactly as written
+- If you cannot read something, write "[oläsligt]" instead of guessing
+
 Only return the JSON, no other text.`
               },
               {
