@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import * as cheerio from "cheerio";
 import OpenAI from "openai";
+import { randomUUID } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 
 const openai = new OpenAI({
@@ -418,6 +419,105 @@ Only return the JSON, no other text.`
     } catch (err) {
       console.error('Recipe scan error:', err);
       res.status(500).json({ message: 'Failed to analyze recipe image', field: 'image' });
+    }
+  });
+
+  // ========== Sharing Routes ==========
+
+  // Get my shares (invites I've sent)
+  app.get('/api/shares', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const shares = await storage.getSharesByOwner(userId);
+    res.json(shares);
+  });
+
+  // Get shared with me (plans others have shared with me)
+  app.get('/api/shares/received', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const userEmail = (req.user as any)?.claims?.email || '';
+    const shares = await storage.getSharesForUser(userId, userEmail);
+    res.json(shares);
+  });
+
+  // Create a share invite
+  app.post('/api/shares', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userName = (req.user as any)?.claims?.name || 'Unknown';
+      const { email, permission } = req.body;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+      
+      const share = await storage.createShare({
+        ownerId: userId,
+        ownerName: userName,
+        invitedEmail: email.toLowerCase().trim(),
+        permission: permission || 'view',
+        status: 'pending',
+        shareToken: randomUUID(),
+        createdAt: new Date().toISOString(),
+      });
+      
+      res.status(201).json(share);
+    } catch (err) {
+      console.error('Share error:', err);
+      res.status(500).json({ message: 'Failed to create share' });
+    }
+  });
+
+  // Accept a share invite by token
+  app.post('/api/shares/accept/:token', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { token } = req.params;
+      
+      const share = await storage.getShareByToken(token);
+      if (!share) {
+        return res.status(404).json({ message: 'Share not found or already accepted' });
+      }
+      
+      if (share.status !== 'pending') {
+        return res.status(400).json({ message: 'This invite has already been used' });
+      }
+      
+      const updated = await storage.acceptShare(token, userId);
+      res.json(updated);
+    } catch (err) {
+      console.error('Accept share error:', err);
+      res.status(500).json({ message: 'Failed to accept share' });
+    }
+  });
+
+  // Revoke/delete a share (owner only)
+  app.delete('/api/shares/:id', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    await storage.deleteShare(userId, Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // Get shared plan meals (for viewing someone else's plan)
+  app.get('/api/shares/:shareId/meals', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      
+      // Get all shares for this user
+      const myShares = await storage.getSharesForUser(userId, userEmail);
+      const share = myShares.find(s => s.id === shareId);
+      
+      if (!share) {
+        return res.status(403).json({ message: 'You do not have access to this plan' });
+      }
+      
+      // Get the owner's meals
+      const meals = await storage.getMeals(share.ownerId);
+      res.json(meals);
+    } catch (err) {
+      console.error('Get shared meals error:', err);
+      res.status(500).json({ message: 'Failed to fetch shared meals' });
     }
   });
 
