@@ -29,6 +29,10 @@ type Translations = {
     stats: string;
     totalRecipes: string;
     itemsToBuy: string;
+    topRecipes: string;
+    usedTimes: string;
+    selectDay: string;
+    mealType: string;
     
     // Weekly Plan
     lunch: string;
@@ -120,6 +124,20 @@ type Translations = {
     acceptInvite: string;
     viewingPlanOf: string;
     backToMyPlan: string;
+    mealMoved: string;
+    mealHistory: string;
+    mealHistoryDesc: string;
+    noHistory: string;
+    noHistoryDesc: string;
+    weekOf: string;
+    mealsPlanned: string;
+    backToHistory: string;
+    archiveWeek: string;
+    archiveWeekDesc: string;
+    weekArchived: string;
+    loading: string;
+    history: string;
+    mealAdded: string;
   };
 };
 
@@ -145,6 +163,10 @@ const translations: Translations = {
     stats: "Statistik",
     totalRecipes: "sparade recept",
     itemsToBuy: "varor att köpa",
+    topRecipes: "Mest använda recept",
+    usedTimes: "Använd {count} gånger",
+    selectDay: "Välj dag",
+    mealType: "Måltidstyp",
     lunch: "Lunch",
     dinner: "Middag",
     addMeal: "Lägg till måltid",
@@ -230,6 +252,20 @@ const translations: Translations = {
     acceptInvite: "Acceptera inbjudan",
     viewingPlanOf: "Visar plan för",
     backToMyPlan: "Tillbaka till min plan",
+    mealMoved: "Måltid flyttad",
+    mealHistory: "Måltidshistorik",
+    mealHistoryDesc: "Bläddra i tidigare veckors måltider för inspiration",
+    noHistory: "Ingen historik ännu",
+    noHistoryDesc: "Arkivera veckans plan för att spara den",
+    weekOf: "Veckan",
+    mealsPlanned: "måltider planerade",
+    backToHistory: "Tillbaka till historik",
+    archiveWeek: "Arkivera vecka",
+    archiveWeekDesc: "Spara veckans plan i historiken",
+    weekArchived: "Vecka arkiverad",
+    loading: "Laddar",
+    history: "Historik",
+    mealAdded: "Måltid tillagd",
   },
   en: {
     home: "Home",
@@ -252,6 +288,10 @@ const translations: Translations = {
     stats: "Overview",
     totalRecipes: "saved recipes",
     itemsToBuy: "items to buy",
+    topRecipes: "Top Recipes",
+    usedTimes: "Used {count} times",
+    selectDay: "Select Day",
+    mealType: "Meal Type",
     lunch: "Lunch",
     dinner: "Dinner",
     addMeal: "Add Meal",
@@ -337,6 +377,20 @@ const translations: Translations = {
     acceptInvite: "Accept invite",
     viewingPlanOf: "Viewing plan of",
     backToMyPlan: "Back to my plan",
+    mealMoved: "Meal moved",
+    mealHistory: "Meal History",
+    mealHistoryDesc: "Browse previous weeks for inspiration",
+    noHistory: "No history yet",
+    noHistoryDesc: "Archive your weekly plan to save it",
+    weekOf: "Week of",
+    mealsPlanned: "meals planned",
+    backToHistory: "Back to history",
+    archiveWeek: "Archive week",
+    archiveWeekDesc: "Save this week's plan to history",
+    weekArchived: "Week archived",
+    loading: "Loading",
+    history: "History",
+    mealAdded: "Meal added",
   }
 };
 

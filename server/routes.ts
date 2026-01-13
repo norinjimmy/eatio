@@ -531,5 +531,32 @@ Only return the JSON, no other text.`
     }
   });
 
+  // Week History routes
+  app.get('/api/week-history', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const history = await storage.getWeekHistory(userId);
+    res.json(history);
+  });
+
+  app.get('/api/week-history/:weekStart', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const week = await storage.getWeekHistoryByWeek(userId, req.params.weekStart);
+    if (!week) {
+      return res.status(404).json({ message: 'Week not found' });
+    }
+    res.json(week);
+  });
+
+  app.post('/api/week-history/archive', isAuthenticated, async (req, res) => {
+    const userId = getUserId(req);
+    const { weekStart } = req.body;
+    if (!weekStart) {
+      return res.status(400).json({ message: 'weekStart is required' });
+    }
+    const currentMeals = await storage.getMeals(userId);
+    const archived = await storage.archiveWeek(userId, weekStart, currentMeals);
+    res.json(archived);
+  });
+
   return httpServer;
 }

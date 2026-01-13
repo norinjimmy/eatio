@@ -1,13 +1,62 @@
+import { useState } from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { useTranslation } from "@/lib/i18n";
-import { useStore } from "@/lib/store";
-import { ArrowRight, Utensils, CalendarDays, ShoppingBag } from "lucide-react";
+import { useStore, Recipe } from "@/lib/store";
+import { ArrowRight, Utensils, CalendarDays, ShoppingBag, TrendingUp, Plus } from "lucide-react";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const { t } = useTranslation();
-  const { meals, recipes, groceryItems, settings } = useStore();
+  const { meals, recipes, groceryItems, settings, addMeal, addIngredientsToGrocery } = useStore();
+  const { toast } = useToast();
+  
+  const [isAddToPlanOpen, setIsAddToPlanOpen] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [selectedDay, setSelectedDay] = useState("");
+  const [selectedMealType, setSelectedMealType] = useState("Dinner");
+  
+  const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  
+  // Get top recipes sorted by usage count
+  const topRecipes = [...recipes]
+    .sort((a, b) => b.usageCount - a.usageCount)
+    .slice(0, 5)
+    .filter(r => r.usageCount > 0);
+  
+  const handleAddRecipeToPlan = () => {
+    if (!selectedRecipe || !selectedDay) return;
+    
+    addMeal({
+      day: selectedDay,
+      type: selectedMealType,
+      name: selectedRecipe.name,
+      recipeId: selectedRecipe.id,
+    });
+    
+    if (selectedRecipe.ingredients.length > 0) {
+      addIngredientsToGrocery(selectedRecipe.ingredients, selectedRecipe.name);
+    }
+    
+    toast({ 
+      title: t("mealAdded") || "Meal added", 
+      description: `${selectedRecipe.name} ${t(selectedDay.toLowerCase() as any)} ${t(selectedMealType.toLowerCase() as any)}` 
+    });
+    
+    setIsAddToPlanOpen(false);
+    setSelectedRecipe(null);
+    setSelectedDay("");
+  };
+  
+  const openAddToPlan = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setIsAddToPlanOpen(true);
+  };
 
   const workDays = settings?.workDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
@@ -17,7 +66,6 @@ export default function Home() {
   const dinner = todaysMealsList.find(m => m.type === 'Dinner');
   const isWorkDay = workDays.includes(today);
 
-  const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const plannedDaysCount = DAYS.filter(day => 
     meals.some(m => m.day === day)
   ).length;
@@ -138,7 +186,96 @@ export default function Home() {
             </Card>
           </Link>
         </div>
+
+        {/* Top Recipes Section */}
+        {topRecipes.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={18} className="text-primary" />
+              <h3 className="font-bold text-foreground">{t("topRecipes")}</h3>
+            </div>
+            <Card className="border-none shadow-sm">
+              <CardContent className="p-0 divide-y divide-border/40">
+                {topRecipes.map((recipe) => (
+                  <div 
+                    key={recipe.id} 
+                    className="p-4 flex items-center justify-between group hover:bg-primary/5 transition-colors"
+                    data-testid={`top-recipe-${recipe.id}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground truncate">{recipe.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {t("usedTimes").replace("{count}", String(recipe.usageCount))}
+                      </div>
+                    </div>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      onClick={() => openAddToPlan(recipe)}
+                      className="opacity-50 group-hover:opacity-100 transition-opacity"
+                      data-testid={`button-add-to-plan-${recipe.id}`}
+                    >
+                      <Plus size={18} />
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
+
+      {/* Add to Plan Dialog */}
+      <Dialog open={isAddToPlanOpen} onOpenChange={setIsAddToPlanOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("addToPlan")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {selectedRecipe && (
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="font-medium">{selectedRecipe.name}</div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>{t("selectDay")}</Label>
+              <Select value={selectedDay} onValueChange={setSelectedDay}>
+                <SelectTrigger data-testid="select-day-trigger">
+                  <SelectValue placeholder={t("selectDay")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAYS.map((day) => (
+                    <SelectItem key={day} value={day} data-testid={`select-day-${day.toLowerCase()}`}>
+                      {t(day.toLowerCase() as any)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t("mealType")}</Label>
+              <Select value={selectedMealType} onValueChange={setSelectedMealType}>
+                <SelectTrigger data-testid="select-meal-type-trigger">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Breakfast" data-testid="select-meal-type-breakfast">{t("breakfast")}</SelectItem>
+                  <SelectItem value="Lunch" data-testid="select-meal-type-lunch">{t("lunch")}</SelectItem>
+                  <SelectItem value="Dinner" data-testid="select-meal-type-dinner">{t("dinner")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              onClick={handleAddRecipeToPlan} 
+              disabled={!selectedDay}
+              className="w-full"
+              data-testid="button-confirm-add-to-plan"
+            >
+              {t("add")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

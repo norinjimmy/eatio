@@ -1,13 +1,14 @@
 import { db } from "./db";
 import {
-  recipes, meals, groceryItems, userSettings, mealPlanShares,
+  recipes, meals, groceryItems, userSettings, mealPlanShares, weekHistory,
   type Recipe, type InsertRecipe,
   type Meal, type InsertMeal,
   type GroceryItem, type InsertGroceryItem,
   type UserSettings, type InsertUserSettings,
-  type MealPlanShare, type InsertMealPlanShare
+  type MealPlanShare, type InsertMealPlanShare,
+  type WeekHistory, type InsertWeekHistory
 } from "@shared/schema";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Recipes
@@ -46,6 +47,11 @@ export interface IStorage {
   updateShare(id: number, updates: Partial<InsertMealPlanShare>): Promise<MealPlanShare>;
   deleteShare(ownerId: string, id: number): Promise<void>;
   acceptShare(token: string, userId: string): Promise<MealPlanShare | undefined>;
+
+  // Week History
+  getWeekHistory(userId: string): Promise<WeekHistory[]>;
+  getWeekHistoryByWeek(userId: string, weekStart: string): Promise<WeekHistory | undefined>;
+  archiveWeek(userId: string, weekStart: string, mealsData: Meal[]): Promise<WeekHistory>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -206,6 +212,37 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(mealPlanShares.shareToken, token), eq(mealPlanShares.status, "pending")))
       .returning();
     return updated;
+  }
+
+  // Week History
+  async getWeekHistory(userId: string): Promise<WeekHistory[]> {
+    return await db.select().from(weekHistory)
+      .where(eq(weekHistory.userId, userId))
+      .orderBy(desc(weekHistory.weekStart));
+  }
+
+  async getWeekHistoryByWeek(userId: string, weekStart: string): Promise<WeekHistory | undefined> {
+    const [week] = await db.select().from(weekHistory)
+      .where(and(eq(weekHistory.userId, userId), eq(weekHistory.weekStart, weekStart)));
+    return week;
+  }
+
+  async archiveWeek(userId: string, weekStart: string, mealsData: Meal[]): Promise<WeekHistory> {
+    const existing = await this.getWeekHistoryByWeek(userId, weekStart);
+    if (existing) {
+      const [updated] = await db.update(weekHistory)
+        .set({ meals: mealsData })
+        .where(eq(weekHistory.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(weekHistory).values({
+      userId,
+      weekStart,
+      meals: mealsData,
+      createdAt: new Date().toISOString(),
+    }).returning();
+    return created;
   }
 }
 

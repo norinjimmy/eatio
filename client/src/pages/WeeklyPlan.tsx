@@ -1,17 +1,20 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import Layout from "@/components/Layout";
 import { useTranslation } from "@/lib/i18n";
-import { useStore, Meal, Recipe } from "@/lib/store";
+import { useStore, Meal } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, X, Utensils, Coffee, Move, ArrowLeft, Users } from "lucide-react";
+import { Plus, X, Utensils, Coffee, GripVertical, ArrowLeft, Users, Archive, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { MealPlanShare } from "@shared/schema";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { Link } from "wouter";
 
 // Simple fuzzy match - checks if all characters in query appear in order in target
 function fuzzyMatch(query: string, target: string): { match: boolean; score: number } {
@@ -104,6 +107,46 @@ export default function WeeklyPlan() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [mealToDelete, setMealToDelete] = useState<Meal | null>(null);
   const [hasIngredientsInGrocery, setHasIngredientsInGrocery] = useState(false);
+  
+  // Drag and drop state
+  const [activeDragMeal, setActiveDragMeal] = useState<Meal | null>(null);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+  
+  const handleDragStart = (event: DragStartEvent) => {
+    const mealId = event.active.id as number;
+    const meal = displayMeals.find(m => m.id === mealId);
+    if (meal) {
+      setActiveDragMeal(meal);
+    }
+  };
+  
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragMeal(null);
+    
+    if (!over) return;
+    
+    const mealId = active.id as number;
+    const dropTarget = over.id as string;
+    
+    // Parse drop target: format is "day-type" e.g. "Monday-Lunch"
+    const [targetDay, targetType] = dropTarget.split('-');
+    
+    if (targetDay && targetType) {
+      moveMeal(mealId, targetDay, targetType);
+      toast({ 
+        title: t("mealMoved") || "Meal moved", 
+        description: `${t(targetDay.toLowerCase() as any)} ${t(targetType.toLowerCase() as any)}` 
+      });
+    }
+  };
   
   const handleDeleteMeal = (meal: Meal) => {
     // Check if this meal has ingredients in the grocery list
@@ -201,8 +244,36 @@ export default function WeeklyPlan() {
   const workShift = settings?.workShift || 'day';
   const breakfastDays = settings?.breakfastDays || [];
 
+  // Get current week start date (Monday)
+  const getWeekStart = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(now.setDate(diff));
+    return monday.toISOString().split('T')[0];
+  };
+
+  const archiveMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('/api/week-history/archive', {
+        method: 'POST',
+        body: JSON.stringify({ weekStart: getWeekStart() }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/week-history'] });
+      toast({ title: t("weekArchived") });
+    },
+  });
+
   return (
     <Layout>
+      <DndContext 
+        sensors={sensors} 
+        onDragStart={isReadOnly ? undefined : handleDragStart} 
+        onDragEnd={isReadOnly ? undefined : handleDragEnd}
+      >
       {viewingShare && (
         <div className="mb-4 p-3 bg-primary/10 rounded-lg flex items-center justify-between" data-testid="shared-plan-banner">
           <div className="flex items-center gap-2">
@@ -218,13 +289,32 @@ export default function WeeklyPlan() {
         </div>
       )}
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-2">
         <h2 className="text-2xl font-display font-bold">{t("weeklyPlan")}</h2>
-        {!isReadOnly && (
-          <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
-            <Plus size={18} className="mr-1" /> {t("add")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!isReadOnly && (
+            <>
+              <Link href="/history">
+                <Button size="sm" variant="outline" className="rounded-full" data-testid="button-history">
+                  <Clock size={16} className="mr-1" /> {t("history")}
+                </Button>
+              </Link>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => archiveMutation.mutate()} 
+                disabled={archiveMutation.isPending}
+                className="rounded-full"
+                data-testid="button-archive-week"
+              >
+                <Archive size={16} className="mr-1" /> {t("archiveWeek")}
+              </Button>
+              <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
+                <Plus size={18} className="mr-1" /> {t("add")}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="space-y-6 pb-8">
@@ -251,33 +341,30 @@ export default function WeeklyPlan() {
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
                       <Coffee size={12} /> {t("breakfast")}
                     </div>
-                    {dayMeals.breakfast.length === 0 ? (
-                      !isReadOnly && (
-                        <div 
-                          onClick={() => { setActiveDay(day); setActiveType('breakfast'); setIsAddOpen(true); }}
-                          className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                          data-testid={`add-breakfast-${day.toLowerCase()}`}
-                        >
-                          {t("addMeal")}
+                    <DroppableSlot id={`${day}-Breakfast`} isEmpty={dayMeals.breakfast.length === 0}>
+                      {dayMeals.breakfast.length === 0 ? (
+                        !isReadOnly && (
+                          <div 
+                            onClick={() => { setActiveDay(day); setActiveType('Breakfast'); setIsAddOpen(true); }}
+                            className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                            data-testid={`add-breakfast-${day.toLowerCase()}`}
+                          >
+                            {t("addMeal")}
+                          </div>
+                        )
+                      ) : (
+                        <div className="space-y-2">
+                          {dayMeals.breakfast.map(meal => (
+                            <DraggableMealItem 
+                              key={meal.id} 
+                              meal={meal} 
+                              isDraggable={!isReadOnly}
+                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                            />
+                          ))}
                         </div>
-                      )
-                    ) : (
-                      <div className="space-y-2">
-                        {dayMeals.breakfast.map(meal => (
-                          <MealItem 
-                            key={meal.id} 
-                            meal={meal} 
-                            onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
-                            onMove={isReadOnly ? undefined : () => {
-                              setMealToMove(meal);
-                              setMoveTargetDay(meal.day);
-                              setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
-                              setIsMoveOpen(true);
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
+                      )}
+                    </DroppableSlot>
                   </div>
                 )}
 
@@ -290,33 +377,30 @@ export default function WeeklyPlan() {
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
                       <Coffee size={12} /> {t("lunch")}
                     </div>
-                    {dayMeals.lunch.length === 0 ? (
-                      !isReadOnly && (
-                        <div 
-                          onClick={() => { setActiveDay(day); setActiveType('lunch'); setIsAddOpen(true); }}
-                          className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                          data-testid={`add-lunch-${day.toLowerCase()}`}
-                        >
-                          {t("addMeal")}
+                    <DroppableSlot id={`${day}-Lunch`} isEmpty={dayMeals.lunch.length === 0}>
+                      {dayMeals.lunch.length === 0 ? (
+                        !isReadOnly && (
+                          <div 
+                            onClick={() => { setActiveDay(day); setActiveType('Lunch'); setIsAddOpen(true); }}
+                            className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                            data-testid={`add-lunch-${day.toLowerCase()}`}
+                          >
+                            {t("addMeal")}
+                          </div>
+                        )
+                      ) : (
+                        <div className="space-y-2">
+                          {dayMeals.lunch.map(meal => (
+                            <DraggableMealItem 
+                              key={meal.id} 
+                              meal={meal} 
+                              isDraggable={!isReadOnly}
+                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                            />
+                          ))}
                         </div>
-                      )
-                    ) : (
-                      <div className="space-y-2">
-                        {dayMeals.lunch.map(meal => (
-                          <MealItem 
-                            key={meal.id} 
-                            meal={meal} 
-                            onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
-                            onMove={isReadOnly ? undefined : () => {
-                              setMealToMove(meal);
-                              setMoveTargetDay(meal.day);
-                              setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
-                              setIsMoveOpen(true);
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
+                      )}
+                    </DroppableSlot>
                   </div>
                 )}
 
@@ -329,33 +413,30 @@ export default function WeeklyPlan() {
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
                       <Utensils size={12} /> {t("dinner")}
                     </div>
-                    {dayMeals.dinner.length === 0 ? (
-                      !isReadOnly && (
-                        <div 
-                          onClick={() => { setActiveDay(day); setActiveType('dinner'); setIsAddOpen(true); }}
-                          className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
-                          data-testid={`add-dinner-${day.toLowerCase()}`}
-                        >
-                          {t("addMeal")}
+                    <DroppableSlot id={`${day}-Dinner`} isEmpty={dayMeals.dinner.length === 0}>
+                      {dayMeals.dinner.length === 0 ? (
+                        !isReadOnly && (
+                          <div 
+                            onClick={() => { setActiveDay(day); setActiveType('Dinner'); setIsAddOpen(true); }}
+                            className="border-2 border-dashed border-border rounded-xl p-3 text-sm text-center text-muted-foreground/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer transition-all"
+                            data-testid={`add-dinner-${day.toLowerCase()}`}
+                          >
+                            {t("addMeal")}
+                          </div>
+                        )
+                      ) : (
+                        <div className="space-y-2">
+                          {dayMeals.dinner.map(meal => (
+                            <DraggableMealItem 
+                              key={meal.id} 
+                              meal={meal} 
+                              isDraggable={!isReadOnly}
+                              onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
+                            />
+                          ))}
                         </div>
-                      )
-                    ) : (
-                      <div className="space-y-2">
-                        {dayMeals.dinner.map(meal => (
-                          <MealItem 
-                            key={meal.id} 
-                            meal={meal} 
-                            onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)} 
-                            onMove={isReadOnly ? undefined : () => {
-                              setMealToMove(meal);
-                              setMoveTargetDay(meal.day);
-                              setMoveTargetType(meal.type as 'breakfast' | 'lunch' | 'dinner');
-                              setIsMoveOpen(true);
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
+                      )}
+                    </DroppableSlot>
                   </div>
                 )}
               </div>
@@ -534,17 +615,66 @@ export default function WeeklyPlan() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Drag Overlay - shows what's being dragged */}
+      <DragOverlay>
+        {activeDragMeal ? (
+          <div className="bg-card border border-primary shadow-lg rounded-xl p-3 opacity-90">
+            <div className="font-medium text-sm text-foreground">{activeDragMeal.name}</div>
+          </div>
+        ) : null}
+      </DragOverlay>
+      </DndContext>
     </Layout>
   );
 }
 
-function MealItem({ meal, onDelete, onMove }: { meal: Meal; onDelete?: () => void; onMove?: () => void }) {
+// Droppable slot component for meal slots
+function DroppableSlot({ id, children, isEmpty }: { id: string; children: React.ReactNode; isEmpty?: boolean }) {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  
+  return (
+    <div 
+      ref={setNodeRef}
+      className={cn(
+        "min-h-[40px] rounded-xl transition-colors",
+        isOver && "bg-primary/10 ring-2 ring-primary/30",
+        isEmpty && isOver && "bg-primary/20"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Draggable meal item component
+function DraggableMealItem({ meal, onDelete, isDraggable }: { meal: Meal; onDelete?: () => void; isDraggable: boolean }) {
   const { recipes } = useStore();
   const recipe = meal.recipeId ? recipes.find(r => r.id === meal.recipeId) : null;
+  
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: meal.id,
+    disabled: !isDraggable,
+  });
 
   return (
-    <div className="group flex items-center justify-between bg-muted/30 rounded-xl p-3 hover:bg-muted/60 transition-colors">
-      <div className={cn("flex-1", onMove && "cursor-pointer")} onClick={onMove}>
+    <div 
+      ref={setNodeRef}
+      className={cn(
+        "group flex items-center justify-between bg-muted/30 rounded-xl p-3 hover:bg-muted/60 transition-colors",
+        isDragging && "opacity-50"
+      )}
+    >
+      {isDraggable && (
+        <div 
+          {...listeners} 
+          {...attributes}
+          className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 text-muted-foreground hover:text-foreground touch-none"
+        >
+          <GripVertical size={16} />
+        </div>
+      )}
+      <div className="flex-1">
         <div className="font-medium text-sm text-foreground">{meal.name}</div>
         {recipe && (
           <div className="text-[10px] text-muted-foreground bg-background/50 inline-block px-1.5 rounded-sm mt-0.5">
@@ -552,29 +682,15 @@ function MealItem({ meal, onDelete, onMove }: { meal: Meal; onDelete?: () => voi
           </div>
         )}
       </div>
-      {(onMove || onDelete) && (
-        <div className="flex items-center gap-1">
-          {onMove && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={(e) => { e.stopPropagation(); onMove(); }}
-              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-            >
-              <Move size={14} />
-            </Button>
-          )}
-          {onDelete && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-            >
-              <X size={16} />
-            </Button>
-          )}
-        </div>
+      {onDelete && (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+        >
+          <X size={16} />
+        </Button>
       )}
     </div>
   );

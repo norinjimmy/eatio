@@ -57,12 +57,22 @@ export const mealPlanShares = pgTable("meal_plan_shares", {
   createdAt: text("created_at").notNull(),
 });
 
+// Week History - stores archived weekly meal plans
+export const weekHistory = pgTable("week_history", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  weekStart: text("week_start").notNull(),
+  meals: jsonb("meals").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
 // Schemas
 export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true, usageCount: true });
 export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
 export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({ id: true });
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true });
 export const insertMealPlanShareSchema = createInsertSchema(mealPlanShares).omit({ id: true });
+export const insertWeekHistorySchema = createInsertSchema(weekHistory).omit({ id: true });
 
 // Types
 export type Recipe = typeof recipes.$inferSelect;
@@ -79,6 +89,9 @@ export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 
 export type MealPlanShare = typeof mealPlanShares.$inferSelect;
 export type InsertMealPlanShare = z.infer<typeof insertMealPlanShareSchema>;
+
+export type WeekHistory = typeof weekHistory.$inferSelect;
+export type InsertWeekHistory = z.infer<typeof insertWeekHistorySchema>;
 
 // Enums for frontend usage
 export const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
