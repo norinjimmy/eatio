@@ -185,32 +185,40 @@ export async function registerRoutes(
         });
       }
       
-      // Fallback: Parse Swedish recipe blogs that list ingredients in plain text
+      // Fallback: Parse ingredients from raw HTML (handles Swedish blogs with <br> separated ingredients)
       if (ingredients.length === 0) {
-        const bodyText = $('article, .entry-content, .post-content, main, body').first().text();
-        
-        // Look for "Ingredienser:" section
-        const ingredientMatch = bodyText.match(/Ingredienser?:?\s*([\s\S]*?)(?:Gör så här|Instruktioner|Tillagning|Steg\s*1|^\s*\d+\.\s)/i);
+        // Look for ingredient section in raw HTML
+        const ingredientMatch = html.match(/Ingredienser?:?\s*(?:<[^>]*>)?\s*([\s\S]*?)(?:G.r s. h.r|Instruktioner|Tillagning|<strong>\d+\.)/i);
         if (ingredientMatch) {
-          const ingredientBlock = ingredientMatch[1];
-          // Split by newlines and filter for ingredient-like lines
-          const lines = ingredientBlock.split(/\n/).map(l => l.trim()).filter(l => l.length > 0 && l.length < 150);
+          let ingredientBlock = ingredientMatch[1];
+          // Decode unicode escapes (e.g., \u00f6 -> ö)
+          ingredientBlock = ingredientBlock.replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => 
+            String.fromCharCode(parseInt(code, 16))
+          );
+          // Replace literal \n with actual newlines, <br> and <br/> with newlines, strip other HTML tags
+          ingredientBlock = ingredientBlock
+            .replace(/\\n/g, '\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&amp;/g, '&')
+            .replace(/&nbsp;/g, ' ');
+          
+          const lines = ingredientBlock.split(/\n/).map(l => l.trim()).filter(l => l.length > 2 && l.length < 150);
           
           // Common Swedish measurement patterns
           const measurementPattern = /^[\d\.,½¼¾⅓⅔]+\s*(dl|msk|tsk|g|kg|ml|l|st|port|portion|krm)\b|^ca\s*\d|paket|burk|klyfta|knippa/i;
-          const ingredientWords = /pasta|ost|lök|vitlök|grädde|ägg|salt|peppar|smör|olja|mjöl|socker|tomat|paprika|kyckling|nötkött|fläsk|potatis|ris|bröd/i;
+          const ingredientWords = /pasta|ost|lök|vitlök|grädde|ägg|salt|peppar|smör|olja|mjöl|socker|tomat|paprika|kyckling|nötkött|fläsk|potatis|ris|bröd|halloumi/i;
           
           for (const line of lines) {
-            // Skip headers and non-ingredient lines
+            // Skip headers and instruction-like lines
             if (line.match(/^(tips|obs|gör så här|instruktioner|\d+\s*port)/i)) continue;
-            if (line.startsWith('**') && line.endsWith('**')) continue;
-            if (line.startsWith('*') && !line.match(/\d/)) continue;
+            if (line.match(/^\d+\.\s/)) continue; // Numbered instructions
             
             // Check if line looks like an ingredient
             if (measurementPattern.test(line) || ingredientWords.test(line)) {
-              // Clean up markdown formatting
               const cleaned = line.replace(/\*\*/g, '').replace(/^\*\s*/, '').trim();
-              if (cleaned.length > 2 && cleaned.length < 150) {
+              if (cleaned.length > 2 && !ingredients.includes(cleaned)) {
                 ingredients.push(cleaned);
               }
             }
