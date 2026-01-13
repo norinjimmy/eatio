@@ -110,7 +110,18 @@ export async function registerRoutes(
         return res.status(400).json({ message: 'Could not fetch URL', field: 'url' });
       }
       
+      // Limit response size to 5MB to prevent memory exhaustion
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) {
+        return res.status(400).json({ message: 'Response too large', field: 'url' });
+      }
+      
       const html = await response.text();
+      
+      // Additional size check after reading
+      if (html.length > 5 * 1024 * 1024) {
+        return res.status(400).json({ message: 'Response too large', field: 'url' });
+      }
       const $ = cheerio.load(html);
       
       let name: string | undefined;
