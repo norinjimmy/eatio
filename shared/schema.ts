@@ -44,11 +44,25 @@ export const userSettings = pgTable("user_settings", {
   breakfastDays: text("breakfast_days").array().default([]).notNull(),
 });
 
+// Meal Plan Shares - for sharing weekly plans with family members
+export const mealPlanShares = pgTable("meal_plan_shares", {
+  id: serial("id").primaryKey(),
+  ownerId: varchar("owner_id").notNull(),
+  ownerName: text("owner_name"),
+  invitedEmail: text("invited_email").notNull(),
+  invitedUserId: varchar("invited_user_id"),
+  permission: text("permission").default("view").notNull(),
+  status: text("status").default("pending").notNull(),
+  shareToken: varchar("share_token").notNull().unique(),
+  createdAt: text("created_at").notNull(),
+});
+
 // Schemas
 export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true, usageCount: true });
 export const insertMealSchema = createInsertSchema(meals).omit({ id: true });
 export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({ id: true });
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true });
+export const insertMealPlanShareSchema = createInsertSchema(mealPlanShares).omit({ id: true });
 
 // Types
 export type Recipe = typeof recipes.$inferSelect;
@@ -62,6 +76,9 @@ export type InsertGroceryItem = z.infer<typeof insertGroceryItemSchema>;
 
 export type UserSettings = typeof userSettings.$inferSelect;
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+
+export type MealPlanShare = typeof mealPlanShares.$inferSelect;
+export type InsertMealPlanShare = z.infer<typeof insertMealPlanShareSchema>;
 
 // Enums for frontend usage
 export const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
