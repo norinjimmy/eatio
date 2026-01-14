@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/lib/i18n";
 import { StoreProvider } from "@/lib/store";
+import { ShareProvider } from "@/lib/share-context";
 import { useAuth } from "@/hooks/use-auth";
 
 import Home from "@/pages/Home";
@@ -20,18 +21,20 @@ import { Loader2 } from "lucide-react";
 
 function AuthenticatedRouter() {
   return (
-    <StoreProvider>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/plan" component={WeeklyPlan} />
-        <Route path="/recipes" component={Recipes} />
-        <Route path="/grocery" component={GroceryList} />
-        <Route path="/favorites" component={Favorites} />
-        <Route path="/settings" component={SettingsPage} />
-        <Route path="/history" component={History} />
-        <Route component={NotFound} />
-      </Switch>
-    </StoreProvider>
+    <ShareProvider>
+      <StoreProvider>
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/plan" component={WeeklyPlan} />
+          <Route path="/recipes" component={Recipes} />
+          <Route path="/grocery" component={GroceryList} />
+          <Route path="/favorites" component={Favorites} />
+          <Route path="/settings" component={SettingsPage} />
+          <Route path="/history" component={History} />
+          <Route component={NotFound} />
+        </Switch>
+      </StoreProvider>
+    </ShareProvider>
   );
 }
 

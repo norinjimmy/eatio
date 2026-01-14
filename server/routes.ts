@@ -653,6 +653,198 @@ Only return the JSON, no other text.`
     }
   });
 
+  // Get shared plan recipes
+  app.get('/api/shares/:shareId/recipes', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      
+      const myShares = await storage.getSharesForUser(userId, userEmail);
+      const share = myShares.find(s => s.id === shareId);
+      
+      if (!share || share.status !== 'accepted') {
+        return res.status(403).json({ message: 'You do not have access to this plan' });
+      }
+      
+      const recipes = await storage.getRecipes(share.ownerId);
+      res.json(recipes);
+    } catch (err) {
+      console.error('Get shared recipes error:', err);
+      res.status(500).json({ message: 'Failed to fetch shared recipes' });
+    }
+  });
+
+  // Get shared plan grocery list
+  app.get('/api/shares/:shareId/grocery', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      
+      const myShares = await storage.getSharesForUser(userId, userEmail);
+      const share = myShares.find(s => s.id === shareId);
+      
+      if (!share || share.status !== 'accepted') {
+        return res.status(403).json({ message: 'You do not have access to this plan' });
+      }
+      
+      const groceryItems = await storage.getGroceryItems(share.ownerId);
+      res.json(groceryItems);
+    } catch (err) {
+      console.error('Get shared grocery error:', err);
+      res.status(500).json({ message: 'Failed to fetch shared grocery' });
+    }
+  });
+
+  // Get shared plan settings
+  app.get('/api/shares/:shareId/settings', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      
+      const myShares = await storage.getSharesForUser(userId, userEmail);
+      const share = myShares.find(s => s.id === shareId);
+      
+      if (!share || share.status !== 'accepted') {
+        return res.status(403).json({ message: 'You do not have access to this plan' });
+      }
+      
+      const settings = await storage.getUserSettings(share.ownerId);
+      res.json(settings);
+    } catch (err) {
+      console.error('Get shared settings error:', err);
+      res.status(500).json({ message: 'Failed to fetch shared settings' });
+    }
+  });
+
+  // Helper to verify edit permission on share
+  async function verifyShareEditPermission(userId: string, userEmail: string, shareId: number) {
+    const myShares = await storage.getSharesForUser(userId, userEmail);
+    const share = myShares.find(s => s.id === shareId);
+    if (!share || share.status !== 'accepted') {
+      return { error: 'You do not have access to this plan', share: null };
+    }
+    if (share.permission !== 'edit') {
+      return { error: 'You do not have edit permission', share: null };
+    }
+    return { error: null, share };
+  }
+
+  // Create meal on shared plan (edit permission required)
+  app.post('/api/shares/:shareId/meals', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        return res.status(403).json({ message: error });
+      }
+      
+      const input = api.meals.create.input.parse(req.body);
+      const meal = await storage.createMeal({ ...input, userId: share.ownerId });
+      res.status(201).json(meal);
+    } catch (err) {
+      console.error('Create shared meal error:', err);
+      res.status(500).json({ message: 'Failed to create meal' });
+    }
+  });
+
+  // Update meal on shared plan (edit permission required)
+  app.patch('/api/shares/:shareId/meals/:mealId', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      const mealId = Number(req.params.mealId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        return res.status(403).json({ message: error });
+      }
+      
+      const input = api.meals.update.input.parse(req.body);
+      const updated = await storage.updateMeal(share.ownerId, mealId, input);
+      if (!updated) {
+        return res.status(404).json({ message: 'Meal not found' });
+      }
+      res.json(updated);
+    } catch (err) {
+      console.error('Update shared meal error:', err);
+      res.status(500).json({ message: 'Failed to update meal' });
+    }
+  });
+
+  // Delete meal on shared plan (edit permission required)
+  app.delete('/api/shares/:shareId/meals/:mealId', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      const mealId = Number(req.params.mealId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        return res.status(403).json({ message: error });
+      }
+      
+      await storage.deleteMeal(share.ownerId, mealId);
+      res.status(204).send();
+    } catch (err) {
+      console.error('Delete shared meal error:', err);
+      res.status(500).json({ message: 'Failed to delete meal' });
+    }
+  });
+
+  // Create recipe on shared plan (edit permission required)
+  app.post('/api/shares/:shareId/recipes', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        return res.status(403).json({ message: error });
+      }
+      
+      const input = api.recipes.create.input.parse(req.body);
+      const recipe = await storage.createRecipe({ ...input, userId: share.ownerId });
+      res.status(201).json(recipe);
+    } catch (err) {
+      console.error('Create shared recipe error:', err);
+      res.status(500).json({ message: 'Failed to create recipe' });
+    }
+  });
+
+  // Update grocery item on shared plan (edit permission required)
+  app.patch('/api/shares/:shareId/grocery/:itemId', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = (req.user as any)?.claims?.email || '';
+      const shareId = Number(req.params.shareId);
+      const itemId = Number(req.params.itemId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        return res.status(403).json({ message: error });
+      }
+      
+      const input = api.grocery.update.input.parse(req.body);
+      const updated = await storage.updateGroceryItem(share.ownerId, itemId, input);
+      if (!updated) {
+        return res.status(404).json({ message: 'Item not found' });
+      }
+      res.json(updated);
+    } catch (err) {
+      console.error('Update shared grocery error:', err);
+      res.status(500).json({ message: 'Failed to update item' });
+    }
+  });
+
   // Week History routes
   app.get('/api/week-history', isAuthenticated, async (req, res) => {
     const userId = getUserId(req);

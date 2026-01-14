@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { MealPlanShare } from "@shared/schema";
+import { useShare } from "@/lib/share-context";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { Link } from "wouter";
 import { startOfWeek, addWeeks, format, getISOWeek } from "date-fns";
@@ -80,17 +80,7 @@ export default function WeeklyPlan() {
   const goToCurrentWeek = () => setSelectedWeekStart(getWeekStart(new Date()));
   
   // Check if viewing a shared plan
-  const [viewingShare, setViewingShare] = useState<MealPlanShare | null>(() => {
-    const stored = localStorage.getItem('viewing-shared-plan');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
+  const { viewingShare, canEdit: shareCanEdit, exitShareView } = useShare();
 
   // Fetch shared plan meals if viewing someone else's plan
   const { data: sharedMeals = [] } = useQuery<Meal[]>({
@@ -104,14 +94,55 @@ export default function WeeklyPlan() {
     enabled: !!viewingShare,
   });
 
+  // Fetch shared plan recipes if viewing someone else's plan
+  const { data: sharedRecipes = [] } = useQuery<Recipe[]>({
+    queryKey: ['/api/shares', viewingShare?.id, 'recipes'],
+    queryFn: async () => {
+      if (!viewingShare) return [];
+      const res = await fetch(`/api/shares/${viewingShare.id}/recipes`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch shared recipes');
+      return res.json();
+    },
+    enabled: !!viewingShare,
+  });
+
+  // Mutations for shared plan editing
+  const createSharedMealMutation = useMutation({
+    mutationFn: async (data: { day: string; type: string; name: string; notes?: string; recipeId?: number; weekStart?: string }) => {
+      return apiRequest('POST', `/api/shares/${viewingShare?.id}/meals`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'meals'] });
+    },
+  });
+
+  const updateSharedMealMutation = useMutation({
+    mutationFn: async ({ mealId, updates }: { mealId: number; updates: Partial<Meal> }) => {
+      return apiRequest('PATCH', `/api/shares/${viewingShare?.id}/meals/${mealId}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'meals'] });
+    },
+  });
+
+  const deleteSharedMealMutation = useMutation({
+    mutationFn: async (mealId: number) => {
+      return apiRequest('DELETE', `/api/shares/${viewingShare?.id}/meals/${mealId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'meals'] });
+    },
+  });
+
   const exitSharedView = () => {
-    localStorage.removeItem('viewing-shared-plan');
-    setViewingShare(null);
+    exitShareView();
   };
 
-  // Use shared meals or own meals depending on what we're viewing
-  // Filter meals by the selected week
+  // Use shared meals/recipes or own meals/recipes depending on what we're viewing
   const allMeals = viewingShare ? sharedMeals : meals;
+  const displayRecipes = viewingShare ? sharedRecipes : recipes;
+  
+  // Filter meals by the selected week
   const displayMeals = useMemo(() => {
     return allMeals.filter(meal => {
       // Meals without weekStart are considered as current week (for backward compatibility)
@@ -121,7 +152,9 @@ export default function WeeklyPlan() {
       return meal.weekStart === selectedWeekStartStr;
     });
   }, [allMeals, selectedWeekStartStr, isCurrentWeek]);
-  const isReadOnly = !!viewingShare;
+  
+  // Read-only if viewing share without edit permission
+  const isReadOnly = viewingShare ? !shareCanEdit : false;
   
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [activeDay, setActiveDay] = useState<string>("Monday");
@@ -153,13 +186,13 @@ export default function WeeklyPlan() {
   
   const handleRecipeClick = useCallback((meal: Meal) => {
     if (meal.recipeId) {
-      const recipe = recipes.find(r => r.id === meal.recipeId);
+      const recipe = displayRecipes.find(r => r.id === meal.recipeId);
       if (recipe) {
         setViewingRecipe(recipe);
         setRecipeDialogOpen(true);
       }
     }
-  }, [recipes]);
+  }, [displayRecipes]);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -182,6 +215,7 @@ export default function WeeklyPlan() {
     setActiveDragMeal(null);
     
     if (!over) return;
+    if (isReadOnly) return; // Safety check for read-only mode
     
     const mealId = active.id as number;
     const dropTarget = over.id as string;
@@ -190,37 +224,53 @@ export default function WeeklyPlan() {
     const [targetDay, targetType] = dropTarget.split('-');
     
     if (targetDay && targetType) {
-      moveMeal(mealId, targetDay, targetType);
+      if (viewingShare) {
+        // Use shared mutation
+        updateSharedMealMutation.mutate({ mealId, updates: { day: targetDay, type: targetType } });
+      } else {
+        moveMeal(mealId, targetDay, targetType);
+      }
       toast({ 
         title: t("mealMoved") || "Meal moved", 
         description: `${t(targetDay.toLowerCase() as any)} ${t(targetType.toLowerCase() as any)}` 
       });
     }
-  }, [moveMeal, toast, t]);
+  }, [isReadOnly, viewingShare, updateSharedMealMutation, moveMeal, toast, t]);
   
   const handleDeleteMeal = useCallback((meal: Meal) => {
+    if (isReadOnly) return; // Safety check for read-only mode
+    
     // Check if this meal has ingredients in the grocery list
     const hasIngredients = groceryItems.some(item => item.sourceMeal === meal.name && !item.isBought);
     
-    if (hasIngredients) {
+    if (hasIngredients && !viewingShare) {
       setMealToDelete(meal);
       setHasIngredientsInGrocery(true);
       setIsDeleteConfirmOpen(true);
     } else {
-      // No ingredients in grocery list, just delete
-      deleteMeal(meal.id);
+      // No ingredients in grocery list, or viewing shared plan - just delete
+      if (viewingShare) {
+        deleteSharedMealMutation.mutate(meal.id);
+      } else {
+        deleteMeal(meal.id);
+      }
       toast({ title: t("delete"), description: meal.name });
     }
-  }, [groceryItems, deleteMeal, toast, t]);
+  }, [isReadOnly, viewingShare, groceryItems, deleteSharedMealMutation, deleteMeal, toast, t]);
   
   const confirmDeleteMeal = (removeIngredients: boolean) => {
     if (!mealToDelete) return;
+    if (isReadOnly) return; // Safety check for read-only mode
     
-    if (removeIngredients) {
+    if (removeIngredients && !viewingShare) {
       deleteItemsByMeal(mealToDelete.name);
     }
     
-    deleteMeal(mealToDelete.id);
+    if (viewingShare) {
+      deleteSharedMealMutation.mutate(mealToDelete.id);
+    } else {
+      deleteMeal(mealToDelete.id);
+    }
     toast({ title: t("delete"), description: mealToDelete.name });
     
     setIsDeleteConfirmOpen(false);
@@ -231,7 +281,7 @@ export default function WeeklyPlan() {
   const suggestions = useMemo(() => {
     if (!newMealName || newMealName.length < 1) return [];
     
-    const matches = recipes
+    const matches = displayRecipes
       .map(recipe => ({
         recipe,
         ...fuzzyMatch(newMealName, recipe.name)
@@ -241,31 +291,38 @@ export default function WeeklyPlan() {
       .slice(0, 5);
     
     return matches.map(m => m.recipe);
-  }, [newMealName, recipes]);
+  }, [newMealName, displayRecipes]);
 
   const handleAddMeal = () => {
     if (!newMealName && !selectedRecipeId) return;
+    if (isReadOnly) return; // Safety check for read-only mode
     
     let name = newMealName;
     if (selectedRecipeId) {
-      const r = recipes.find(rc => rc.id === selectedRecipeId);
+      const r = displayRecipes.find(rc => rc.id === selectedRecipeId);
       if (r) name = r.name;
     }
 
-    addMeal({
+    const mealData = {
       day: activeDay,
       type: activeType,
       name: name,
       recipeId: selectedRecipeId || undefined,
       weekStart: selectedWeekStartStr
-    });
+    };
+
+    if (viewingShare) {
+      createSharedMealMutation.mutate(mealData);
+    } else {
+      addMeal(mealData);
+    }
     
     setNewMealName("");
     setSelectedRecipeId(null);
     setIsAddOpen(false);
     
-    if (selectedRecipeId) {
-      const r = recipes.find(rc => rc.id === selectedRecipeId);
+    if (selectedRecipeId && !viewingShare) {
+      const r = displayRecipes.find(rc => rc.id === selectedRecipeId);
       if (r && r.ingredients.length > 0) {
         setPendingIngredients(r.ingredients);
         setIsIngredientConfirmOpen(true);
@@ -277,8 +334,13 @@ export default function WeeklyPlan() {
 
   const handleMoveMeal = () => {
     if (!mealToMove || !moveTargetDay) return;
+    if (isReadOnly) return; // Safety check for read-only mode
     
-    moveMeal(mealToMove.id, moveTargetDay, moveTargetType);
+    if (viewingShare) {
+      updateSharedMealMutation.mutate({ mealId: mealToMove.id, updates: { day: moveTargetDay, type: moveTargetType } });
+    } else {
+      moveMeal(mealToMove.id, moveTargetDay, moveTargetType);
+    }
     
     setIsMoveOpen(false);
     setMealToMove(null);
@@ -414,7 +476,8 @@ export default function WeeklyPlan() {
                           {dayMeals.breakfast.map(meal => (
                             <DraggableMealItem 
                               key={meal.id} 
-                              meal={meal} 
+                              meal={meal}
+                              hasRecipe={!!meal.recipeId && !!displayRecipes.find(r => r.id === meal.recipeId)}
                               isDraggable={!isReadOnly}
                               onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
                               onRecipeClick={handleRecipeClick}
@@ -451,7 +514,8 @@ export default function WeeklyPlan() {
                           {dayMeals.lunch.map(meal => (
                             <DraggableMealItem 
                               key={meal.id} 
-                              meal={meal} 
+                              meal={meal}
+                              hasRecipe={!!meal.recipeId && !!displayRecipes.find(r => r.id === meal.recipeId)}
                               isDraggable={!isReadOnly}
                               onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
                               onRecipeClick={handleRecipeClick}
@@ -488,7 +552,8 @@ export default function WeeklyPlan() {
                           {dayMeals.dinner.map(meal => (
                             <DraggableMealItem 
                               key={meal.id} 
-                              meal={meal} 
+                              meal={meal}
+                              hasRecipe={!!meal.recipeId && !!displayRecipes.find(r => r.id === meal.recipeId)}
                               isDraggable={!isReadOnly}
                               onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
                               onRecipeClick={handleRecipeClick}
@@ -714,10 +779,7 @@ function DroppableSlot({ id, children, isEmpty }: { id: string; children: React.
 }
 
 // Draggable meal item component - memoized for performance
-const DraggableMealItem = memo(function DraggableMealItem({ meal, onDelete, isDraggable, onRecipeClick }: { meal: Meal; onDelete?: () => void; isDraggable: boolean; onRecipeClick?: (meal: Meal) => void }) {
-  const { recipes } = useStore();
-  const recipe = meal.recipeId ? recipes.find(r => r.id === meal.recipeId) : null;
-  
+const DraggableMealItem = memo(function DraggableMealItem({ meal, hasRecipe, onDelete, isDraggable, onRecipeClick }: { meal: Meal; hasRecipe: boolean; onDelete?: () => void; isDraggable: boolean; onRecipeClick?: (meal: Meal) => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: meal.id,
     disabled: !isDraggable,
@@ -729,9 +791,9 @@ const DraggableMealItem = memo(function DraggableMealItem({ meal, onDelete, isDr
       className={cn(
         "group flex items-center justify-between bg-muted/30 rounded-xl p-3 hover:bg-muted/60 transition-colors",
         isDragging && "opacity-50",
-        recipe && "cursor-pointer"
+        hasRecipe && "cursor-pointer"
       )}
-      onClick={() => recipe && onRecipeClick?.(meal)}
+      onClick={() => hasRecipe && onRecipeClick?.(meal)}
       data-testid={`meal-item-${meal.id}`}
     >
       {isDraggable && (
@@ -746,7 +808,7 @@ const DraggableMealItem = memo(function DraggableMealItem({ meal, onDelete, isDr
       )}
       <div className="flex-1">
         <div className="font-medium text-sm text-foreground">{meal.name}</div>
-        {recipe && (
+        {hasRecipe && (
           <div className="text-[10px] text-muted-foreground bg-background/50 inline-block px-1.5 rounded-sm mt-0.5">
             Recipe
           </div>

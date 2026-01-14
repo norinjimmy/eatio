@@ -10,11 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LogOut, Send, Trash2, Users, Eye, Edit2, Clock, Check, Briefcase, UserCircle, AlertTriangle } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useShare } from "@/lib/share-context";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import type { MealPlanShare } from "@shared/schema";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -24,8 +26,10 @@ export type WorkShift = 'day' | 'evening';
 export default function SettingsPage() {
   const { t } = useTranslation();
   const { settings, updateSettings } = useStore();
+  const { setViewingShare } = useShare();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePermission, setInvitePermission] = useState<'view' | 'edit'>('view');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -299,8 +303,8 @@ export default function SettingsPage() {
                         <Button
                           size="sm"
                           onClick={() => { 
-                            localStorage.setItem('viewing-shared-plan', JSON.stringify(share));
-                            window.location.href = '/plan';
+                            setViewingShare(share);
+                            navigate('/plan');
                           }}
                           data-testid={`button-view-plan-${share.id}`}
                         >
