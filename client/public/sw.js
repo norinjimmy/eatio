@@ -1,6 +1,5 @@
-const CACHE_NAME = 'eatio-v1';
+const CACHE_NAME = 'eatio-v2';
 const urlsToCache = [
-  '/',
   '/manifest.json',
   '/favicon.png'
 ];
@@ -33,6 +32,7 @@ self.addEventListener('fetch', (event) => {
   
   const url = new URL(event.request.url);
   
+  // Always fetch API calls from network
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(event.request)
@@ -43,6 +43,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // Network-first for HTML pages (navigation requests)
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+  
+  // Cache-first for static assets (JS, CSS, images)
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
