@@ -1,5 +1,123 @@
 // Swedish ingredient parsing and normalization utilities
 
+// Grocery categories
+export type GroceryCategory = 
+  | 'vegetables'    // Grönsaker & frukt
+  | 'dairy'         // Mejeri
+  | 'meat'          // Kött & fisk
+  | 'frozen'        // Fryst
+  | 'pantry'        // Skafferi
+  | 'bread'         // Bröd & bageri
+  | 'beverages'     // Drycker
+  | 'other';        // Övrigt
+
+// Swedish category names for display
+export const CATEGORY_NAMES: Record<GroceryCategory, { sv: string; en: string }> = {
+  vegetables: { sv: 'Grönsaker & frukt', en: 'Vegetables & Fruit' },
+  dairy: { sv: 'Mejeri', en: 'Dairy' },
+  meat: { sv: 'Kött & fisk', en: 'Meat & Fish' },
+  frozen: { sv: 'Fryst', en: 'Frozen' },
+  pantry: { sv: 'Skafferi', en: 'Pantry' },
+  bread: { sv: 'Bröd & bageri', en: 'Bread & Bakery' },
+  beverages: { sv: 'Drycker', en: 'Beverages' },
+  other: { sv: 'Övrigt', en: 'Other' },
+};
+
+// Category order for display
+export const CATEGORY_ORDER: GroceryCategory[] = [
+  'vegetables',
+  'dairy',
+  'meat',
+  'frozen',
+  'bread',
+  'pantry',
+  'beverages',
+  'other',
+];
+
+// Ingredient to category mappings
+const CATEGORY_KEYWORDS: Record<GroceryCategory, string[]> = {
+  vegetables: [
+    // Vegetables
+    'morot', 'morötter', 'tomat', 'tomater', 'potatis', 'gurka', 'lök', 'vitlök',
+    'paprika', 'broccoli', 'sallad', 'spenat', 'grönkål', 'vitkål', 'kål',
+    'zucchini', 'aubergine', 'champinjon', 'svamp', 'majs', 'ärtor', 'bönor',
+    'selleri', 'purjolök', 'rödbetor', 'rädisor', 'sparris', 'squash',
+    'ruccola', 'isbergssallad', 'romansallad', 'kronärtskocka',
+    // Fruits
+    'äpple', 'äpplen', 'banan', 'bananer', 'apelsin', 'citron', 'lime',
+    'jordgubbe', 'jordgubbar', 'hallon', 'blåbär', 'lingon', 'druva', 'druvor',
+    'päron', 'persika', 'mango', 'ananas', 'vattenmelon', 'melon',
+    'kiwi', 'avokado', 'granatäpple', 'fikon', 'dadlar',
+    // Herbs
+    'basilika', 'persilja', 'dill', 'koriander', 'rosmarin', 'timjan', 'oregano',
+    'mynta', 'gräslök', 'salvia',
+  ],
+  dairy: [
+    'mjölk', 'lättmjölk', 'mellanmjölk', 'standardmjölk', 'grädde', 'vispgrädde',
+    'matlagningsgrädde', 'crème fraiche', 'creme fraiche', 'gräddfil', 'filmjölk',
+    'yoghurt', 'kvarg', 'ost', 'riven ost', 'parmesanost', 'parmesan', 'mozzarella',
+    'cheddar', 'gouda', 'brie', 'fetaost', 'halloumi', 'smör', 'margarin',
+    'ägg', 'äggula', 'äggulor', 'äggvita', 'cream cheese', 'färskost',
+    'kesella', 'cottage cheese', 'mascarpone', 'ricotta',
+  ],
+  meat: [
+    'kött', 'nötkött', 'fläskkött', 'kycklingfilé', 'kyckling', 'kalkon',
+    'fläskfilé', 'kotlett', 'bacon', 'skinka', 'korv', 'falukorv', 'prinskorv',
+    'chorizo', 'salsiccia', 'köttfärs', 'blandfärs', 'nötfärs', 'fläskfärs',
+    'färs', 'köttbullar', 'biff', 'entrecote', 'ryggbiff', 'oxfilé',
+    'fisk', 'lax', 'laxfilé', 'torsk', 'torskfilé', 'sej', 'kolja', 'rödspätta',
+    'räkor', 'räka', 'kräftor', 'musslor', 'bläckfisk', 'tonfisk', 'makrill',
+    'sill', 'strömming', 'gravad lax', 'rökt lax',
+  ],
+  frozen: [
+    'fryst', 'frysta', 'glass', 'fryspizza', 'frysgrönsaker',
+    'frusna bär', 'frysta bär', 'frysta ärtor', 'fryst spenat',
+  ],
+  bread: [
+    'bröd', 'limpa', 'franskbröd', 'ciabatta', 'focaccia', 'pitabröd', 'tortilla',
+    'tunnbröd', 'knäckebröd', 'polarkaka', 'hamburgerbröd', 'korvbröd',
+    'croissant', 'bulle', 'kanelbulle', 'wienerbröd', 'muffin', 'kaka',
+    'pasta', 'spaghetti', 'penne', 'fusilli', 'lasagne', 'lasagnette', 'tagliatelle',
+    'nudlar', 'ris', 'basmatiris', 'jasminris', 'risotto', 'couscous', 'bulgur',
+  ],
+  pantry: [
+    'mjöl', 'vetemjöl', 'bakpulver', 'bikarbonat', 'jäst', 'strösocker', 'florsocker',
+    'vaniljsocker', 'kanel', 'kardemumma', 'ingefära', 'muskotnöt', 'kryddor',
+    'buljong', 'buljongtärning', 'hönsbuljongtärning', 'grönsaksbuljongtärning',
+    'kalvfond', 'soja', 'sojasås', 'ketchup', 'senap', 'majonnäs', 'vinäger',
+    'balsamvinäger', 'olivolja', 'rapsolja', 'kokosolja', 'sesamolja',
+    'krossade tomater', 'tomatpuré', 'passerade tomater', 'tomatsås',
+    'kokosmjölk', 'konserverade', 'konserv', 'kikärtor', 'kidneybönor',
+    'vita bönor', 'linser', 'nötter', 'mandlar', 'valnötter', 'cashewnötter',
+    'jordnötter', 'frön', 'sesamfrön', 'solrosfrön', 'pumpafrön',
+    'honung', 'sirap', 'lönnsirap', 'marmelad', 'sylt', 'nutella',
+    'choklad', 'kakao', 'kakaopulver', 'russin', 'torkad frukt',
+  ],
+  beverages: [
+    'juice', 'apelsinjuice', 'äppeljuice', 'läsk', 'vatten', 'mineralvatten',
+    'kaffe', 'te', 'öl', 'vin', 'cider', 'alkoholfritt',
+  ],
+  other: [],
+};
+
+// Categorize an ingredient based on its name
+export function categorizeIngredient(ingredientName: string): GroceryCategory {
+  const lower = ingredientName.toLowerCase();
+  
+  // Check each category's keywords
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    for (const keyword of keywords) {
+      // Match as word or substring
+      if (lower.includes(keyword)) {
+        return category as GroceryCategory;
+      }
+    }
+  }
+  
+  return 'other';
+}
+
 // Pantry staples that should be excluded from grocery list
 export const PANTRY_STAPLES = [
   // Salt & pepper

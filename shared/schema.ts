@@ -34,6 +34,7 @@ export const groceryItems = pgTable("grocery_items", {
   normalizedName: text("normalized_name"),
   quantity: integer("quantity").default(1),
   unit: text("unit"),
+  category: text("category").default("other"),
   isBought: boolean("is_bought").default(false).notNull(),
   isCustom: boolean("is_custom").default(true).notNull(),
   sourceMeal: text("source_meal"),
