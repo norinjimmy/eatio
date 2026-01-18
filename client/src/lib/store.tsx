@@ -18,7 +18,7 @@ interface StoreContextType {
   updateMeal: (id: number, updates: Partial<Meal>) => Promise<void>;
   deleteMeal: (id: number) => Promise<void>;
   moveMeal: (id: number, newDay: string, newType: string) => Promise<void>;
-  addGroceryItem: (name: string, isCustom?: boolean, sourceMeal?: string, quantity?: number, unit?: string) => Promise<void>;
+  addGroceryItem: (name: string, isCustom?: boolean, sourceMeal?: string, quantity?: number, unit?: string, normalizedName?: string, category?: string) => Promise<void>;
   addIngredientsToGrocery: (ingredients: string[], sourceMeal?: string) => Promise<void>;
   toggleGroceryItem: (id: number) => Promise<void>;
   deleteGroceryItem: (id: number) => Promise<void>;

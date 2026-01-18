@@ -4,14 +4,27 @@ import { useTranslation } from "@/lib/i18n";
 import { useStore, GroceryItem } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, X } from "lucide-react";
+import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, X, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CATEGORY_NAMES, CATEGORY_ORDER, type GroceryCategory } from "@shared/ingredient-utils";
+
+// Category icons
+const CATEGORY_ICONS: Record<GroceryCategory, React.ReactNode> = {
+  vegetables: <Apple size={16} />,
+  dairy: <Milk size={16} />,
+  meat: <Beef size={16} />,
+  frozen: <Snowflake size={16} />,
+  bread: <Croissant size={16} />,
+  pantry: <Package size={16} />,
+  beverages: <Coffee size={16} />,
+  other: <HelpCircle size={16} />,
+};
 
 export default function GroceryList() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { groceryItems, addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, clearAllItems, deleteItemsByMeal, getSourceMeals, regenerateGroceryList } = useStore();
   const { toast } = useToast();
   
@@ -28,16 +41,34 @@ export default function GroceryList() {
   };
 
   const handleRegenerate = () => {
-    if (confirm("This will add items from your weekly plan to the list. Continue?")) {
+    const confirmMsg = language === 'sv' 
+      ? "Detta lägger till varor från din veckoplan till listan. Fortsätt?" 
+      : "This will add items from your weekly plan to the list. Continue?";
+    if (confirm(confirmMsg)) {
       regenerateGroceryList();
-      toast({ title: "List Updated", description: "Items from weekly plan added." });
+      const title = language === 'sv' ? "Lista uppdaterad" : "List Updated";
+      const desc = language === 'sv' ? "Varor från veckoplan tillagda." : "Items from weekly plan added.";
+      toast({ title, description: desc });
     }
   };
-
-  const sortedItems = [...groceryItems].sort((a, b) => {
-    if (a.isBought === b.isBought) return 0;
-    return a.isBought ? 1 : -1;
-  });
+  
+  // Group items by category
+  const groupedItems = CATEGORY_ORDER.reduce((acc, category) => {
+    const categoryItems = groceryItems.filter(item => 
+      (item.category || 'other') === category
+    );
+    if (categoryItems.length > 0) {
+      // Sort: unbought first, then bought
+      acc[category] = categoryItems.sort((a, b) => {
+        if (a.isBought === b.isBought) return 0;
+        return a.isBought ? 1 : -1;
+      });
+    }
+    return acc;
+  }, {} as Record<GroceryCategory, GroceryItem[]>);
+  
+  // Collect bought items from all categories
+  const boughtItems = groceryItems.filter(i => i.isBought);
 
   return (
     <Layout>
@@ -49,7 +80,8 @@ export default function GroceryList() {
               variant="outline" 
               size="sm" 
               onClick={handleRegenerate}
-              className="rounded-full border-primary/20 text-primary hover:bg-primary/5 text-xs"
+              className="rounded-full text-xs"
+              data-testid="button-regenerate-list"
             >
               <RefreshCw size={14} className="mr-1.5" />
               {t("generatedFromPlan")}
@@ -96,14 +128,15 @@ export default function GroceryList() {
         </div>
 
         {/* Add Item Input */}
-        <form onSubmit={handleAdd} className="flex gap-2">
+        <form onSubmit={handleAdd} className="flex gap-2" data-testid="form-add-item">
           <Input 
             value={newItem} 
             onChange={(e) => setNewItem(e.target.value)}
             placeholder={t("addItem") + "..."}
             className="rounded-xl bg-card border-none shadow-sm h-12"
+            data-testid="input-new-item"
           />
-          <Button type="submit" size="icon" className="h-12 w-12 rounded-xl shrink-0 bg-primary hover:bg-primary/90">
+          <Button type="submit" size="icon" className="h-12 w-12 rounded-xl shrink-0" data-testid="button-add-item">
             <Plus />
           </Button>
         </form>
@@ -113,24 +146,45 @@ export default function GroceryList() {
             <p>{t("noItems")}</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {sortedItems.map(item => (
-              <GroceryListItem 
-                key={item.id} 
-                item={item} 
-                onToggle={() => toggleGroceryItem(item.id)}
-                onDelete={() => deleteGroceryItem(item.id)}
-              />
-            ))}
+          <div className="space-y-6">
+            {CATEGORY_ORDER.map(category => {
+              const items = groupedItems[category];
+              if (!items || items.length === 0) return null;
+              
+              const categoryName = language === 'sv' 
+                ? CATEGORY_NAMES[category].sv 
+                : CATEGORY_NAMES[category].en;
+              
+              return (
+                <div key={category} className="space-y-2" data-testid={`category-${category}`}>
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <span className="text-primary">{CATEGORY_ICONS[category]}</span>
+                    <span>{categoryName}</span>
+                    <span className="text-xs opacity-60">({items.filter(i => !i.isBought).length})</span>
+                  </div>
+                  <div className="space-y-1.5 pl-1">
+                    {items.map(item => (
+                      <GroceryListItem 
+                        key={item.id} 
+                        item={item} 
+                        onToggle={() => toggleGroceryItem(item.id)}
+                        onDelete={() => deleteGroceryItem(item.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
         
-        {groceryItems.some(i => i.isBought) && (
+        {boughtItems.length > 0 && (
           <div className="pt-4 flex justify-center">
             <Button 
               variant="ghost" 
               onClick={clearBoughtItems} 
-              className="text-muted-foreground hover:text-destructive text-xs"
+              className="text-muted-foreground text-xs"
+              data-testid="button-clear-bought"
             >
               <Trash2 size={14} className="mr-2" />
               {t("clearBought")}
@@ -149,8 +203,9 @@ export default function GroceryList() {
             {sourceMeals.map(mealName => {
               const count = groceryItems.filter(i => i.sourceMeal === mealName && !i.isBought).length;
               return (
-                <button
+                <Button
                   key={mealName}
+                  variant="ghost"
                   onClick={() => {
                     deleteItemsByMeal(mealName);
                     toast({ title: t("itemsCleared"), description: `${count} ${mealName}` });
@@ -158,16 +213,16 @@ export default function GroceryList() {
                       setIsMealDialogOpen(false);
                     }
                   }}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  className="w-full flex items-center justify-between p-3 rounded-xl"
                   data-testid={`button-clear-meal-${mealName}`}
                 >
                   <span className="font-medium">{mealName}</span>
                   <span className="text-sm text-muted-foreground">{count} varor</span>
-                </button>
+                </Button>
               );
             })}
           </div>
-          <Button variant="outline" onClick={() => setIsMealDialogOpen(false)} className="rounded-xl mt-2">
+          <Button variant="outline" onClick={() => setIsMealDialogOpen(false)} className="rounded-xl mt-2" data-testid="button-cancel-meal-dialog">
             {t("cancel")}
           </Button>
         </DialogContent>
@@ -183,10 +238,12 @@ function GroceryListItem({ item, onToggle, onDelete }: { item: GroceryItem, onTo
         "group flex items-center justify-between p-3 rounded-xl transition-all duration-300",
         item.isBought ? "bg-muted/30 opacity-60" : "bg-card shadow-sm border border-border/50"
       )}
+      data-testid={`grocery-item-${item.id}`}
     >
       <div 
         onClick={onToggle}
         className="flex items-center gap-3 flex-1 cursor-pointer select-none"
+        data-testid={`button-toggle-item-${item.id}`}
       >
         <div className={cn("transition-colors duration-300", item.isBought ? "text-primary" : "text-muted-foreground/50")}>
           {item.isBought ? <CheckCircle2 size={24} className="fill-primary/10" /> : <Circle size={24} />}
@@ -195,7 +252,7 @@ function GroceryListItem({ item, onToggle, onDelete }: { item: GroceryItem, onTo
           <span className={cn(
             "font-medium transition-all duration-300",
             item.isBought ? "line-through text-muted-foreground" : "text-foreground"
-          )}>
+          )} data-testid={`text-item-name-${item.id}`}>
             {item.name}
           </span>
           {item.sourceMeal && !item.isBought && (
@@ -204,12 +261,15 @@ function GroceryListItem({ item, onToggle, onDelete }: { item: GroceryItem, onTo
         </div>
       </div>
       
-      <button 
+      <Button 
+        variant="ghost"
+        size="icon"
         onClick={onDelete}
-        className="p-2 text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 rounded-full transition-all"
+        className="p-2 text-muted-foreground/30"
+        data-testid={`button-delete-item-${item.id}`}
       >
         <Trash2 size={16} />
-      </button>
+      </Button>
     </div>
   );
 }
