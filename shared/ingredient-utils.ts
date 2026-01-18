@@ -43,7 +43,7 @@ const CATEGORY_KEYWORDS: Record<GroceryCategory, string[]> = {
     'paprika', 'broccoli', 'sallad', 'spenat', 'grönkål', 'vitkål', 'kål',
     'zucchini', 'aubergine', 'champinjon', 'svamp', 'majs', 'ärtor', 'bönor',
     'selleri', 'purjolök', 'rödbetor', 'rädisor', 'sparris', 'squash',
-    'ruccola', 'isbergssallad', 'romansallad', 'kronärtskocka',
+    'ruccola', 'isbergssallad', 'romansallad', 'kronärtskocka', 'scharlottenlök',
     // Fruits
     'äpple', 'äpplen', 'banan', 'bananer', 'apelsin', 'citron', 'lime',
     'jordgubbe', 'jordgubbar', 'hallon', 'blåbär', 'lingon', 'druva', 'druvor',
@@ -57,14 +57,14 @@ const CATEGORY_KEYWORDS: Record<GroceryCategory, string[]> = {
     'mjölk', 'lättmjölk', 'mellanmjölk', 'standardmjölk', 'grädde', 'vispgrädde',
     'matlagningsgrädde', 'crème fraiche', 'creme fraiche', 'gräddfil', 'filmjölk',
     'yoghurt', 'kvarg', 'ost', 'riven ost', 'parmesanost', 'parmesan', 'mozzarella',
-    'cheddar', 'gouda', 'brie', 'fetaost', 'halloumi', 'smör', 'margarin',
+    'cheddar', 'gouda', 'brie', 'fetaost', 'halloumi', 'halloumiost',
     'ägg', 'äggula', 'äggulor', 'äggvita', 'cream cheese', 'färskost',
     'kesella', 'cottage cheese', 'mascarpone', 'ricotta',
   ],
   meat: [
     'kött', 'nötkött', 'fläskkött', 'kycklingfilé', 'kyckling', 'kalkon',
     'fläskfilé', 'kotlett', 'bacon', 'skinka', 'korv', 'falukorv', 'prinskorv',
-    'chorizo', 'salsiccia', 'köttfärs', 'blandfärs', 'nötfärs', 'fläskfärs',
+    'chorizo', 'salsiccia', 'salsicciafärs', 'köttfärs', 'blandfärs', 'nötfärs', 'fläskfärs',
     'färs', 'köttbullar', 'biff', 'entrecote', 'ryggbiff', 'oxfilé',
     'fisk', 'lax', 'laxfilé', 'torsk', 'torskfilé', 'sej', 'kolja', 'rödspätta',
     'räkor', 'räka', 'kräftor', 'musslor', 'bläckfisk', 'tonfisk', 'makrill',
@@ -85,18 +85,18 @@ const CATEGORY_KEYWORDS: Record<GroceryCategory, string[]> = {
     'mjöl', 'vetemjöl', 'bakpulver', 'bikarbonat', 'jäst', 'strösocker', 'florsocker',
     'vaniljsocker', 'kanel', 'kardemumma', 'ingefära', 'muskotnöt', 'kryddor',
     'buljong', 'buljongtärning', 'hönsbuljongtärning', 'grönsaksbuljongtärning',
-    'kalvfond', 'soja', 'sojasås', 'ketchup', 'senap', 'majonnäs', 'vinäger',
+    'kalvfond', 'fond', 'soja', 'sojasås', 'ketchup', 'senap', 'majonnäs', 'vinäger',
     'balsamvinäger', 'olivolja', 'rapsolja', 'kokosolja', 'sesamolja',
     'krossade tomater', 'tomatpuré', 'passerade tomater', 'tomatsås',
     'kokosmjölk', 'konserverade', 'konserv', 'kikärtor', 'kidneybönor',
     'vita bönor', 'linser', 'nötter', 'mandlar', 'valnötter', 'cashewnötter',
     'jordnötter', 'frön', 'sesamfrön', 'solrosfrön', 'pumpafrön',
     'honung', 'sirap', 'lönnsirap', 'marmelad', 'sylt', 'nutella',
-    'choklad', 'kakao', 'kakaopulver', 'russin', 'torkad frukt',
+    'choklad', 'kakao', 'kakaopulver', 'russin', 'torkad frukt', 'lingon',
   ],
   beverages: [
     'juice', 'apelsinjuice', 'äppeljuice', 'läsk', 'vatten', 'mineralvatten',
-    'kaffe', 'te', 'öl', 'vin', 'cider', 'alkoholfritt',
+    'kaffe', 'te', 'öl', 'vin', 'cider', 'alkoholfritt', 'pastavatten',
   ],
   other: [],
 };
@@ -174,6 +174,8 @@ const INGREDIENT_SYNONYMS: Record<string, string> = {
   'tjock grädde': 'grädde',
   'heavy cream': 'grädde',
   'whipping cream': 'grädde',
+  'crème fraiche': 'crème fraiche',
+  'creme fraiche': 'crème fraiche',
   // Milk variants
   'mjölk': 'mjölk',
   'lättmjölk': 'mjölk',
@@ -188,11 +190,27 @@ const INGREDIENT_SYNONYMS: Record<string, string> = {
   'gul lök': 'lök',
   'röd lök': 'lök',
   'vitlök': 'vitlök',
+  'vitlöksklyfta': 'vitlök',
   'salladslök': 'salladslök',
+  'scharlottenlök': 'lök',
   // Potato variants
   'kokt potatis': 'potatis',
   'mjölig potatis': 'potatis',
   'fast potatis': 'potatis',
+  // Cheese variants
+  'parmesanost': 'parmesan',
+  'halloumiost': 'halloumi',
+  'ost': 'ost',
+  // Meat variants
+  'blandfärs': 'färs',
+  'nötfärs': 'färs',
+  'fläskfärs': 'färs',
+  'köttfärs': 'färs',
+  'salsicciafärs': 'salsiccia',
+  // Egg variants
+  'äggula': 'ägg',
+  'äggulor': 'ägg',
+  'äggvita': 'ägg',
 };
 
 // Common Swedish units
@@ -350,9 +368,12 @@ function normalizeName(name: string): string {
   let normalized = name
     .toLowerCase()
     .trim()
+    // Remove brand names and special characters
+    .replace(/arla\s*(ko®?|köket®?)?/gi, '')
+    .replace(/®/g, '')
     // Remove common prefixes/suffixes
-    .replace(/^(färsk|färska|finhackad|hackad|hackade|riven|rivna|skivad|skivade|tärnad|tärnade|strimlad|strimlade|krossad|krossade|mosad|mosade|kokt|kokta|stekt|stekta|grillad|grillade|rökt|rökta|saltad|saltade)\s+/gi, '')
-    .replace(/\s+(färsk|färska|finhackad|hackad|hackade|riven|rivna|skivad|skivade)$/gi, '')
+    .replace(/^(färsk|färska|finhackad|hackad|hackade|riven|rivna|finriven|skivad|skivade|tärnad|tärnade|strimlad|strimlade|krossad|krossade|mosad|mosade|kokt|kokta|stekt|stekta|grillad|grillade|rökt|rökta|saltad|saltade|japansk|ljus|konc)\s+/gi, '')
+    .replace(/\s+(färsk|färska|finhackad|hackad|hackade|riven|rivna|finriven|skivad|skivade|gratäng)$/gi, '')
     // Remove parenthetical content
     .replace(/\s*\([^)]*\)\s*/g, ' ')
     // Remove punctuation
@@ -366,8 +387,27 @@ function normalizeName(name: string): string {
   const singularized = words.map(word => SWEDISH_PLURAL_MAP[word] || word);
   normalized = singularized.join(' ');
   
-  // Check synonyms
-  normalized = INGREDIENT_SYNONYMS[normalized] || normalized;
+  // Check exact synonyms first
+  if (INGREDIENT_SYNONYMS[normalized]) {
+    return INGREDIENT_SYNONYMS[normalized];
+  }
+  
+  // Check if any synonym keyword is contained in the name
+  for (const [synonym, canonical] of Object.entries(INGREDIENT_SYNONYMS)) {
+    if (normalized.includes(synonym)) {
+      return canonical;
+    }
+  }
+  
+  // Extract last word as primary ingredient if multi-word
+  const wordsArr = normalized.split(' ');
+  if (wordsArr.length > 1) {
+    const lastWord = wordsArr[wordsArr.length - 1];
+    // Check if last word is a known ingredient synonym
+    if (INGREDIENT_SYNONYMS[lastWord]) {
+      return INGREDIENT_SYNONYMS[lastWord];
+    }
+  }
   
   return normalized;
 }
