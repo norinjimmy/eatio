@@ -78,10 +78,12 @@ const CATEGORY_KEYWORDS: Record<GroceryCategory, string[]> = {
     'bröd', 'limpa', 'franskbröd', 'ciabatta', 'focaccia', 'pitabröd', 'tortilla',
     'tunnbröd', 'knäckebröd', 'polarkaka', 'hamburgerbröd', 'korvbröd',
     'croissant', 'bulle', 'kanelbulle', 'wienerbröd', 'muffin', 'kaka',
-    'pasta', 'spaghetti', 'penne', 'fusilli', 'lasagne', 'lasagnette', 'tagliatelle',
-    'nudlar', 'ris', 'basmatiris', 'jasminris', 'risotto', 'couscous', 'bulgur',
   ],
   pantry: [
+    // Pasta, rice, grains
+    'pasta', 'spaghetti', 'penne', 'fusilli', 'lasagne', 'lasagnette', 'tagliatelle',
+    'nudlar', 'ris', 'basmatiris', 'jasminris', 'risotto', 'couscous', 'bulgur',
+    // Baking & staples
     'mjöl', 'vetemjöl', 'bakpulver', 'bikarbonat', 'jäst', 'strösocker', 'florsocker',
     'vaniljsocker', 'kanel', 'kardemumma', 'ingefära', 'muskotnöt', 'kryddor',
     'buljong', 'buljongtärning', 'hönsbuljongtärning', 'grönsaksbuljongtärning',
