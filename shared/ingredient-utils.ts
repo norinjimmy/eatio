@@ -129,7 +129,7 @@ export const PANTRY_STAPLES = [
   'oil', 'olive oil', 'vegetable oil', 'cooking oil',
   'smör', 'butter', 'margarin', 'matfett',
   // Common cooking items
-  'vatten', 'water', 'is', 'ice',
+  'vatten', 'water', 'is', 'ice', 'pastavatten',
   'socker', 'sugar', 'strösocker',
   // Phrases indicating cooking fats
   'för stekning', 'till stekning', 'att steka i', 'stekfett',
