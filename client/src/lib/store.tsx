@@ -2,7 +2,7 @@ import React, { createContext, useContext } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from './queryClient';
 import type { Recipe, Meal, GroceryItem, UserSettings } from '@shared/schema';
-import { parseIngredient, isPantryStaple, aggregateIngredients, formatIngredient, categorizeIngredient } from '@shared/ingredient-utils';
+import { categorizeIngredient } from '@shared/ingredient-utils';
 
 interface StoreContextType {
   recipes: Recipe[];
@@ -202,47 +202,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addIngredientsToGrocery = async (ingredients: string[], sourceMeal?: string) => {
-    const filteredIngredients = ingredients.filter(ing => !isPantryStaple(ing));
-    
-    // Parse all ingredients
-    const parsedIngredients = filteredIngredients.map(ing => parseIngredient(ing));
-    
-    // Aggregate duplicates within the new ingredients
-    const aggregated = aggregateIngredients(parsedIngredients);
-    
-    for (const parsed of aggregated) {
-      // Check if ingredient already exists (match by normalized name and unit)
-      // First try matching by normalizedName, then fallback to matching by name
-      const existingItem = groceryItems.find(item => {
-        if (item.isBought) return false;
-        
-        // Match by normalizedName if it exists
-        if (item.normalizedName) {
-          return item.normalizedName.toLowerCase() === parsed.normalizedName.toLowerCase() &&
-                 (item.unit || null) === (parsed.unit || null);
-        }
-        
-        // Fallback: parse the existing item's name and compare normalized
-        const existingParsed = parseIngredient(item.name);
-        return existingParsed.normalizedName.toLowerCase() === parsed.normalizedName.toLowerCase() &&
-               (existingParsed.unit || null) === (parsed.unit || null);
-      });
-      
-      if (existingItem) {
-        // Update quantity by adding to existing, and update display name
-        const newQuantity = (existingItem.quantity || 1) + parsed.quantity;
-        const updatedParsed = { ...parsed, quantity: newQuantity };
-        const newDisplayName = formatIngredient(updatedParsed);
-        await updateGroceryMutation.mutateAsync({ 
-          id: existingItem.id, 
-          updates: { quantity: newQuantity, name: newDisplayName } 
-        });
-      } else {
-        // Add new item with parsed data
-        const displayName = formatIngredient(parsed);
-        await addGroceryItem(displayName, false, sourceMeal, parsed.quantity, parsed.unit || undefined, parsed.normalizedName);
-      }
-    }
+    // Use server-side processing for proper parsing, filtering, and categorization
+    await apiRequest('POST', '/api/grocery/add-ingredients', { ingredients, sourceMeal });
+    queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
   };
 
   const toggleGroceryItem = async (id: number) => {
@@ -280,38 +242,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const regenerateGroceryList = async () => {
-    const currentCustom = groceryItems.filter(i => i.isCustom);
-    await clearAllItems();
-    
-    // Re-add custom items
-    for (const item of currentCustom) {
-      await addGroceryItem(item.name, true, undefined, item.quantity || 1, item.unit || undefined, item.normalizedName || undefined);
-    }
-    
-    // Collect all ingredients from all meals
-    const allIngredients: { ingredient: string; sourceMeal: string }[] = [];
-    for (const meal of meals) {
-      if (meal.recipeId) {
-        const recipe = recipes.find(r => r.id === meal.recipeId);
-        if (recipe) {
-          for (const ing of recipe.ingredients) {
-            if (!isPantryStaple(ing)) {
-              allIngredients.push({ ingredient: ing, sourceMeal: meal.name });
-            }
-          }
-        }
-      }
-    }
-    
-    // Parse and aggregate all ingredients
-    const parsedIngredients = allIngredients.map(({ ingredient }) => parseIngredient(ingredient));
-    const aggregated = aggregateIngredients(parsedIngredients);
-    
-    // Add aggregated items
-    for (const parsed of aggregated) {
-      const displayName = formatIngredient(parsed);
-      await addGroceryItem(displayName, false, undefined, parsed.quantity, parsed.unit || undefined, parsed.normalizedName);
-    }
+    // Use server-side processing for proper parsing, filtering, aggregation, and categorization
+    await apiRequest('POST', '/api/grocery/regenerate');
+    queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
   };
 
   const updateSettings = async (newSettings: Partial<UserSettings>) => {

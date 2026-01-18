@@ -7,6 +7,7 @@ import * as cheerio from "cheerio";
 import OpenAI from "openai";
 import { randomUUID } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { parseIngredient, isPantryStaple, aggregateIngredients, formatIngredient, categorizeIngredient } from "@shared/ingredient-utils";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -376,6 +377,119 @@ export async function registerRoutes(
     const mealName = decodeURIComponent(req.params.mealName);
     await storage.deleteGroceryItemsByMeal(userId, mealName);
     res.status(204).send();
+  });
+
+  // Regenerate grocery list from current meals
+  app.post('/api/grocery/regenerate', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // Get all meals and recipes
+      const meals = await storage.getMeals(userId);
+      const recipes = await storage.getRecipes(userId);
+      
+      // Collect all ingredients from meals with linked recipes
+      const allIngredients: { ingredient: string; sourceMeal: string }[] = [];
+      
+      for (const meal of meals) {
+        if (meal.recipeId) {
+          const recipe = recipes.find(r => r.id === meal.recipeId);
+          if (recipe && recipe.ingredients) {
+            for (const ingredient of recipe.ingredients) {
+              allIngredients.push({ ingredient, sourceMeal: meal.name });
+            }
+          }
+        }
+      }
+      
+      // Filter out pantry staples
+      const filteredIngredients = allIngredients.filter(
+        item => !isPantryStaple(item.ingredient)
+      );
+      
+      // Parse all ingredients
+      const parsedIngredients = filteredIngredients.map(item => ({
+        ...parseIngredient(item.ingredient),
+        sourceMeal: item.sourceMeal,
+      }));
+      
+      // Aggregate similar ingredients
+      const aggregated = aggregateIngredients(parsedIngredients);
+      
+      // Clear existing grocery items
+      await storage.deleteAllGroceryItems(userId);
+      
+      // Create new grocery items with proper categorization
+      const newItems = [];
+      for (const parsed of aggregated) {
+        const displayName = formatIngredient(parsed);
+        const category = categorizeIngredient(parsed.normalizedName);
+        
+        const item = await storage.createGroceryItem({
+          userId,
+          name: displayName,
+          normalizedName: parsed.normalizedName,
+          quantity: parsed.quantity,
+          unit: parsed.unit || null,
+          category,
+          isBought: false,
+          isCustom: false,
+          sourceMeal: (parsed as any).sourceMeal || null,
+        });
+        newItems.push(item);
+      }
+      
+      res.json(newItems);
+    } catch (err) {
+      console.error('Error regenerating grocery list:', err);
+      res.status(500).json({ message: 'Failed to regenerate grocery list' });
+    }
+  });
+
+  // Add ingredients from a recipe/meal to grocery list
+  app.post('/api/grocery/add-ingredients', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { ingredients, sourceMeal } = req.body as { ingredients: string[]; sourceMeal?: string };
+      
+      if (!ingredients || !Array.isArray(ingredients)) {
+        return res.status(400).json({ message: 'ingredients array is required' });
+      }
+      
+      // Filter out pantry staples
+      const filteredIngredients = ingredients.filter(ing => !isPantryStaple(ing));
+      
+      // Parse ingredients
+      const parsedIngredients = filteredIngredients.map(ing => parseIngredient(ing));
+      
+      // Aggregate similar ingredients
+      const aggregated = aggregateIngredients(parsedIngredients);
+      
+      // Create grocery items
+      const newItems = [];
+      for (const parsed of aggregated) {
+        const displayName = formatIngredient(parsed);
+        const category = categorizeIngredient(parsed.normalizedName);
+        
+        const item = await storage.createGroceryItem({
+          userId,
+          name: displayName,
+          normalizedName: parsed.normalizedName,
+          quantity: parsed.quantity,
+          unit: parsed.unit || null,
+          category,
+          isBought: false,
+          isCustom: false,
+          sourceMeal: sourceMeal || null,
+        });
+        newItems.push(item);
+      }
+      
+      res.json(newItems);
+    } catch (err) {
+      console.error('Error adding ingredients:', err);
+      res.status(500).json({ message: 'Failed to add ingredients' });
+    }
   });
 
   // User Settings
