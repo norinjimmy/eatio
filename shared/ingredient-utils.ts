@@ -107,9 +107,52 @@ export interface ParsedIngredient {
   originalText: string;
 }
 
-// Parse quantity from start of string (handles fractions and decimals)
+// Unicode fraction mappings
+const UNICODE_FRACTIONS: Record<string, number> = {
+  '½': 0.5,
+  '⅓': 1/3,
+  '⅔': 2/3,
+  '¼': 0.25,
+  '¾': 0.75,
+  '⅕': 0.2,
+  '⅖': 0.4,
+  '⅗': 0.6,
+  '⅘': 0.8,
+  '⅙': 1/6,
+  '⅚': 5/6,
+  '⅛': 0.125,
+  '⅜': 0.375,
+  '⅝': 0.625,
+  '⅞': 0.875,
+};
+
+// Parse quantity from start of string (handles fractions, decimals, unicode, ranges, "ca")
 function parseQuantity(text: string): { quantity: number; remaining: string } {
-  const trimmed = text.trim();
+  let trimmed = text.trim();
+  
+  // Strip leading "ca", "ca.", "cirka" prefixes
+  const caMatch = trimmed.match(/^(ca\.?|cirka)\s+/i);
+  if (caMatch) {
+    trimmed = trimmed.slice(caMatch[0].length);
+  }
+  
+  // Handle ranges like "1-2", "1–2" (en-dash), take the higher value
+  const rangeMatch = trimmed.match(/^(\d+)\s*[-–]\s*(\d+)\s*/);
+  if (rangeMatch) {
+    const quantity = Math.max(parseInt(rangeMatch[1]), parseInt(rangeMatch[2]));
+    const remaining = trimmed.slice(rangeMatch[0].length);
+    return { quantity, remaining };
+  }
+  
+  // Handle unicode fractions with optional whole number "1½", "2¼"
+  const unicodeFractionMatch = trimmed.match(/^(\d+)?\s*([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])\s*/);
+  if (unicodeFractionMatch) {
+    const whole = unicodeFractionMatch[1] ? parseInt(unicodeFractionMatch[1]) : 0;
+    const fractionValue = UNICODE_FRACTIONS[unicodeFractionMatch[2]] || 0;
+    const quantity = whole + fractionValue;
+    const remaining = trimmed.slice(unicodeFractionMatch[0].length);
+    return { quantity, remaining };
+  }
   
   // Match fractions like "1/2", "1 1/2", "2 1/4"
   const fractionMatch = trimmed.match(/^(\d+)?\s*(\d+)\/(\d+)\s*/);
@@ -215,13 +258,20 @@ function normalizeName(name: string): string {
 export function isPantryStaple(ingredientText: string): boolean {
   const lower = ingredientText.toLowerCase();
   
-  // Check for exact matches and partial matches
+  // Check for exact word boundary matches (not substrings)
   for (const staple of PANTRY_STAPLES) {
-    if (lower.includes(staple)) return true;
+    // Multi-word staples like "för stekning" need direct inclusion check
+    if (staple.includes(' ')) {
+      if (lower.includes(staple)) return true;
+    } else {
+      // Single words should match as whole words
+      const regex = new RegExp(`\\b${staple}\\b`, 'i');
+      if (regex.test(lower)) return true;
+    }
   }
   
   // Check for cooking oil/fat phrases
-  if (/\b(steka|stekning|stek)\b/i.test(lower)) return true;
+  if (/\b(för stekning|till stekning|att steka i|stekfett)\b/i.test(lower)) return true;
   
   return false;
 }

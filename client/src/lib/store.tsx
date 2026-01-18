@@ -210,18 +210,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     
     for (const parsed of aggregated) {
       // Check if ingredient already exists (match by normalized name and unit)
-      const existingItem = groceryItems.find(item => 
-        !item.isBought && 
-        item.normalizedName?.toLowerCase() === parsed.normalizedName.toLowerCase() &&
-        (item.unit || null) === (parsed.unit || null)
-      );
+      // First try matching by normalizedName, then fallback to matching by name
+      const existingItem = groceryItems.find(item => {
+        if (item.isBought) return false;
+        
+        // Match by normalizedName if it exists
+        if (item.normalizedName) {
+          return item.normalizedName.toLowerCase() === parsed.normalizedName.toLowerCase() &&
+                 (item.unit || null) === (parsed.unit || null);
+        }
+        
+        // Fallback: parse the existing item's name and compare normalized
+        const existingParsed = parseIngredient(item.name);
+        return existingParsed.normalizedName.toLowerCase() === parsed.normalizedName.toLowerCase() &&
+               (existingParsed.unit || null) === (parsed.unit || null);
+      });
       
       if (existingItem) {
-        // Update quantity by adding to existing
+        // Update quantity by adding to existing, and update display name
         const newQuantity = (existingItem.quantity || 1) + parsed.quantity;
+        const updatedParsed = { ...parsed, quantity: newQuantity };
+        const newDisplayName = formatIngredient(updatedParsed);
         await updateGroceryMutation.mutateAsync({ 
           id: existingItem.id, 
-          updates: { quantity: newQuantity } 
+          updates: { quantity: newQuantity, name: newDisplayName } 
         });
       } else {
         // Add new item with parsed data
