@@ -4,11 +4,10 @@ import { useTranslation } from "@/lib/i18n";
 import { useStore, GroceryItem } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, X, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, HelpCircle } from "lucide-react";
+import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CATEGORY_NAMES, CATEGORY_ORDER, type GroceryCategory } from "@shared/ingredient-utils";
 
 // Category icons
@@ -25,13 +24,10 @@ const CATEGORY_ICONS: Record<GroceryCategory, React.ReactNode> = {
 
 export default function GroceryList() {
   const { t, language } = useTranslation();
-  const { groceryItems, addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, clearAllItems, deleteItemsByMeal, getSourceMeals, regenerateGroceryList } = useStore();
+  const { groceryItems, addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, clearAllItems, regenerateGroceryList } = useStore();
   const { toast } = useToast();
   
   const [newItem, setNewItem] = useState("");
-  const [isMealDialogOpen, setIsMealDialogOpen] = useState(false);
-  
-  const sourceMeals = getSourceMeals();
 
   const handleAdd = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -95,19 +91,6 @@ export default function GroceryList() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl">
-                  {sourceMeals.length > 0 && (
-                    <>
-                      <DropdownMenuItem 
-                        onClick={() => setIsMealDialogOpen(true)}
-                        className="text-sm"
-                        data-testid="menu-item-clear-by-meal"
-                      >
-                        <X size={14} className="mr-2" />
-                        {t("clearByMeal")}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
                   <DropdownMenuItem 
                     onClick={() => {
                       if (confirm(t("confirmClearAll"))) {
@@ -193,40 +176,6 @@ export default function GroceryList() {
         )}
       </div>
 
-      {/* Clear by Meal Dialog */}
-      <Dialog open={isMealDialogOpen} onOpenChange={setIsMealDialogOpen}>
-        <DialogContent className="rounded-2xl w-[90%] max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("clearByMeal")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 py-2">
-            {sourceMeals.map(mealName => {
-              const count = groceryItems.filter(i => i.sourceMeal === mealName && !i.isBought).length;
-              return (
-                <Button
-                  key={mealName}
-                  variant="ghost"
-                  onClick={() => {
-                    deleteItemsByMeal(mealName);
-                    toast({ title: t("itemsCleared"), description: `${count} ${mealName}` });
-                    if (sourceMeals.length === 1) {
-                      setIsMealDialogOpen(false);
-                    }
-                  }}
-                  className="w-full flex items-center justify-between p-3 rounded-xl"
-                  data-testid={`button-clear-meal-${mealName}`}
-                >
-                  <span className="font-medium">{mealName}</span>
-                  <span className="text-sm text-muted-foreground">{count} varor</span>
-                </Button>
-              );
-            })}
-          </div>
-          <Button variant="outline" onClick={() => setIsMealDialogOpen(false)} className="rounded-xl mt-2" data-testid="button-cancel-meal-dialog">
-            {t("cancel")}
-          </Button>
-        </DialogContent>
-      </Dialog>
     </Layout>
   );
 }
