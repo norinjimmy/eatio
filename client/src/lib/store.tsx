@@ -2,7 +2,7 @@ import React, { createContext, useContext } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from './queryClient';
 import type { Recipe, Meal, GroceryItem, UserSettings } from '@shared/schema';
-import { parseIngredient, isPantryStaple, aggregateIngredients, formatIngredient } from '@shared/ingredient-utils';
+import { parseIngredient, isPantryStaple, aggregateIngredients, formatIngredient, categorizeIngredient } from '@shared/ingredient-utils';
 
 interface StoreContextType {
   recipes: Recipe[];
@@ -107,7 +107,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   });
 
   const createGroceryMutation = useMutation({
-    mutationFn: (data: { name: string; isCustom?: boolean; sourceMeal?: string; quantity?: number; unit?: string | null; normalizedName?: string }) =>
+    mutationFn: (data: { name: string; isCustom?: boolean; sourceMeal?: string; quantity?: number; unit?: string | null; normalizedName?: string; category?: string }) =>
       apiRequest('POST', '/api/grocery', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/grocery'] }),
   });
@@ -195,8 +195,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateMeal(id, { day: newDay, type: newType });
   };
 
-  const addGroceryItem = async (name: string, isCustom = true, sourceMeal?: string, quantity?: number, unit?: string, normalizedName?: string) => {
-    await createGroceryMutation.mutateAsync({ name, isCustom, sourceMeal, quantity, unit, normalizedName });
+  const addGroceryItem = async (name: string, isCustom = true, sourceMeal?: string, quantity?: number, unit?: string, normalizedName?: string, category?: string) => {
+    // Auto-categorize if not provided
+    const itemCategory = category || categorizeIngredient(normalizedName || name);
+    await createGroceryMutation.mutateAsync({ name, isCustom, sourceMeal, quantity, unit, normalizedName, category: itemCategory });
   };
 
   const addIngredientsToGrocery = async (ingredients: string[], sourceMeal?: string) => {
