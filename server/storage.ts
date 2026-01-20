@@ -63,24 +63,51 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // Recipes
   async getRecipes(userId: string): Promise<Recipe[]> {
-    return await db.select().from(recipes).where(eq(recipes.userId, userId));
+    const recipeList = await db.select().from(recipes).where(eq(recipes.userId, userId));
+    // Convert JSON strings back to arrays
+    return recipeList.map(r => ({
+      ...r,
+      ingredients: JSON.parse(r.ingredients as any),
+    }));
   }
 
   async getRecipe(userId: string, id: number): Promise<Recipe | undefined> {
     const [recipe] = await db.select().from(recipes)
       .where(and(eq(recipes.id, id), eq(recipes.userId, userId)));
-    return recipe;
+    if (!recipe) return undefined;
+    // Convert JSON string back to array
+    return {
+      ...recipe,
+      ingredients: JSON.parse(recipe.ingredients as any),
+    };
   }
 
   async createRecipe(insertRecipe: InsertRecipeWithUser): Promise<Recipe> {
-    const [recipe] = await db.insert(recipes).values(insertRecipe).returning();
-    return recipe;
+    // Convert ingredients array to JSON string for SQLite
+    const recipeData = {
+      ...insertRecipe,
+      ingredients: JSON.stringify(insertRecipe.ingredients),
+    };
+    const [recipe] = await db.insert(recipes).values(recipeData as any).returning();
+    // Convert back to array for response
+    return {
+      ...recipe,
+      ingredients: JSON.parse(recipe.ingredients as any),
+    };
   }
 
   async updateRecipe(userId: string, id: number, updates: Partial<InsertRecipe>): Promise<Recipe> {
-    const [updated] = await db.update(recipes).set(updates)
+    // Convert ingredients array to JSON string if present
+    const updateData = updates.ingredients 
+      ? { ...updates, ingredients: JSON.stringify(updates.ingredients) }
+      : updates;
+    const [updated] = await db.update(recipes).set(updateData as any)
       .where(and(eq(recipes.id, id), eq(recipes.userId, userId))).returning();
-    return updated;
+    // Convert back to array for response
+    return {
+      ...updated,
+      ingredients: JSON.parse(updated.ingredients as any),
+    };
   }
 
   async deleteRecipe(userId: string, id: number): Promise<void> {
@@ -155,22 +182,39 @@ export class DatabaseStorage implements IStorage {
   // Settings
   async getUserSettings(userId: string): Promise<UserSettings | undefined> {
     const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
-    return settings;
+    if (!settings) return undefined;
+    // Convert JSON strings back to arrays
+    return {
+      ...settings,
+      workDays: JSON.parse(settings.workDays as any),
+      breakfastDays: JSON.parse(settings.breakfastDays as any),
+    };
   }
 
   async upsertUserSettings(settings: InsertUserSettings): Promise<UserSettings> {
+    // Convert arrays to JSON strings for SQLite
+    const settingsData = {
+      ...settings,
+      workDays: JSON.stringify(settings.workDays || []),
+      breakfastDays: JSON.stringify(settings.breakfastDays || []),
+    };
     const [result] = await db.insert(userSettings)
-      .values(settings)
+      .values(settingsData as any)
       .onConflictDoUpdate({
         target: userSettings.userId,
         set: {
-          workDays: settings.workDays,
-          workShift: settings.workShift,
-          breakfastDays: settings.breakfastDays,
+          workDays: settingsData.workDays,
+          workShift: settingsData.workShift,
+          breakfastDays: settingsData.breakfastDays,
         },
       })
       .returning();
-    return result;
+    // Convert JSON strings back to arrays for response
+    return {
+      ...result,
+      workDays: JSON.parse(result.workDays as any),
+      breakfastDays: JSON.parse(result.breakfastDays as any),
+    };
   }
 
   // Shares
@@ -243,33 +287,49 @@ export class DatabaseStorage implements IStorage {
 
   // Week History
   async getWeekHistory(userId: string): Promise<WeekHistory[]> {
-    return await db.select().from(weekHistory)
+    const history = await db.select().from(weekHistory)
       .where(eq(weekHistory.userId, userId))
       .orderBy(desc(weekHistory.weekStart));
+    // Convert JSON strings back to objects
+    return history.map(h => ({
+      ...h,
+      meals: JSON.parse(h.meals as any),
+    }));
   }
 
   async getWeekHistoryByWeek(userId: string, weekStart: string): Promise<WeekHistory | undefined> {
     const [week] = await db.select().from(weekHistory)
       .where(and(eq(weekHistory.userId, userId), eq(weekHistory.weekStart, weekStart)));
-    return week;
+    if (!week) return undefined;
+    // Convert JSON string back to object
+    return {
+      ...week,
+      meals: JSON.parse(week.meals as any),
+    };
   }
 
   async archiveWeek(userId: string, weekStart: string, mealsData: Meal[]): Promise<WeekHistory> {
     const existing = await this.getWeekHistoryByWeek(userId, weekStart);
     if (existing) {
       const [updated] = await db.update(weekHistory)
-        .set({ meals: mealsData })
+        .set({ meals: JSON.stringify(mealsData) as any })
         .where(eq(weekHistory.id, existing.id))
         .returning();
-      return updated;
+      return {
+        ...updated,
+        meals: JSON.parse(updated.meals as any),
+      };
     }
     const [created] = await db.insert(weekHistory).values({
       userId,
       weekStart,
-      meals: mealsData,
+      meals: JSON.stringify(mealsData) as any,
       createdAt: new Date().toISOString(),
     }).returning();
-    return created;
+    return {
+      ...created,
+      meals: JSON.parse(created.meals as any),
+    };
   }
 
   // Account

@@ -2,10 +2,13 @@ import fs from "node:fs";
 import OpenAI, { toFile } from "openai";
 import { Buffer } from "node:buffer";
 
-export const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+// Make OpenAI optional - only initialize if API key is available
+export const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY 
+  ? new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    })
+  : null;
 
 /**
  * Generate an image and return as Buffer.

@@ -6,25 +6,20 @@ import { z } from "zod";
 import * as cheerio from "cheerio";
 import OpenAI from "openai";
 import { randomUUID } from "crypto";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { isAuthenticated, getUserId, getUserEmail, setupAuthRoutes } from "./supabase-auth";
 import { parseIngredient, isPantryStaple, aggregateIngredients, formatIngredient, categorizeIngredient } from "@shared/ingredient-utils";
 
-const openai = new OpenAI({
+const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
-
-function getUserId(req: Request): string {
-  return (req.user as any)?.claims?.sub;
-}
+}) : null;
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Setup auth BEFORE other routes
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  // Setup auth routes
+  setupAuthRoutes(app);
 
   // Recipes
   app.get(api.recipes.list.path, isAuthenticated, async (req, res) => {
@@ -534,6 +529,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: 'Image is required', field: 'image' });
       }
 
+      if (!openai) {
+        return res.status(503).json({ message: 'AI service not configured', field: 'image' });
+      }
+
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
@@ -611,14 +610,14 @@ Only return the JSON, no other text.`
   // Get shared with me (plans others have shared with me - accepted only)
   app.get('/api/shares/received', isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
-    const userEmail = (req.user as any)?.claims?.email || '';
+    const userEmail = getUserEmail(req);
     const shares = await storage.getSharesForUser(userId, userEmail);
     res.json(shares);
   });
 
   // Get pending invitations for this user
   app.get('/api/shares/pending', isAuthenticated, async (req, res) => {
-    const userEmail = (req.user as any)?.claims?.email || '';
+    const userEmail = getUserEmail(req);
     if (!userEmail) {
       return res.json([]);
     }
@@ -630,7 +629,7 @@ Only return the JSON, no other text.`
   app.post('/api/shares/:id/accept', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.id);
       
       // Verify this invitation is for this user
@@ -655,7 +654,7 @@ Only return the JSON, no other text.`
   // Decline a share invitation
   app.post('/api/shares/:id/decline', isAuthenticated, async (req, res) => {
     try {
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.id);
       
       // Verify this invitation is for this user
@@ -679,7 +678,7 @@ Only return the JSON, no other text.`
   app.post('/api/shares', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userName = (req.user as any)?.claims?.name || 'Unknown';
+      const userName = req.user?.email || 'Unknown';
       const { email, permission } = req.body;
       
       if (!email || typeof email !== 'string') {
@@ -738,7 +737,7 @@ Only return the JSON, no other text.`
   app.get('/api/shares/:shareId/meals', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       
       // Get only accepted shares where this user is the invitee (by userId or email)
@@ -771,7 +770,7 @@ Only return the JSON, no other text.`
   app.get('/api/shares/:shareId/recipes', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       
       const myShares = await storage.getSharesForUser(userId, userEmail);
@@ -793,7 +792,7 @@ Only return the JSON, no other text.`
   app.get('/api/shares/:shareId/grocery', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       
       const myShares = await storage.getSharesForUser(userId, userEmail);
@@ -815,7 +814,7 @@ Only return the JSON, no other text.`
   app.get('/api/shares/:shareId/settings', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       
       const myShares = await storage.getSharesForUser(userId, userEmail);
@@ -850,7 +849,7 @@ Only return the JSON, no other text.`
   app.post('/api/shares/:shareId/meals', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       
       const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
@@ -871,7 +870,7 @@ Only return the JSON, no other text.`
   app.patch('/api/shares/:shareId/meals/:mealId', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       const mealId = Number(req.params.mealId);
       
@@ -896,7 +895,7 @@ Only return the JSON, no other text.`
   app.delete('/api/shares/:shareId/meals/:mealId', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       const mealId = Number(req.params.mealId);
       
@@ -917,7 +916,7 @@ Only return the JSON, no other text.`
   app.post('/api/shares/:shareId/recipes', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       
       const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
@@ -938,7 +937,7 @@ Only return the JSON, no other text.`
   app.patch('/api/shares/:shareId/grocery/:itemId', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const userEmail = (req.user as any)?.claims?.email || '';
+      const userEmail = getUserEmail(req);
       const shareId = Number(req.params.shareId);
       const itemId = Number(req.params.itemId);
       
@@ -956,6 +955,57 @@ Only return the JSON, no other text.`
     } catch (err) {
       console.error('Update shared grocery error:', err);
       res.status(500).json({ message: 'Failed to update item' });
+    }
+  });
+
+  // Add grocery item to shared plan (edit permission required)
+  app.post('/api/shares/:shareId/grocery', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
+      const shareId = Number(req.params.shareId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        console.error('Share edit permission denied:', error, 'userId:', userId, 'shareId:', shareId);
+        return res.status(403).json({ message: error });
+      }
+      
+      const input = api.grocery.create.input.parse(req.body);
+      const created = await storage.createGroceryItem({ ...input, userId: share.ownerId });
+      res.status(201).json(created);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        console.error('[POST grocery] Zod validation error:', err.errors);
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      console.error('❌ [POST grocery] Unexpected error:', err);
+      res.status(500).json({ message: 'Failed to add item' });
+    }
+  });
+
+  // Delete grocery item from shared plan (edit permission required)
+  app.delete('/api/shares/:shareId/grocery/:itemId', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
+      const shareId = Number(req.params.shareId);
+      const itemId = Number(req.params.itemId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        console.error('[DELETE grocery] Permission denied:', error);
+        return res.status(403).json({ message: error });
+      }
+      
+      await storage.deleteGroceryItem(share.ownerId, itemId);
+      res.status(204).send();
+    } catch (err) {
+      console.error('❌ [DELETE grocery] Error:', err);
+      res.status(500).json({ message: 'Failed to delete item' });
     }
   });
 
@@ -993,5 +1043,14 @@ Only return the JSON, no other text.`
     res.status(204).send();
   });
 
+  // Global error handler for async routes
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('Unhandled error in route:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   return httpServer;
 }
+

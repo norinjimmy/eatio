@@ -3,6 +3,7 @@ import Layout from "@/components/Layout";
 import { useTranslation } from "@/lib/i18n";
 import { useStore, Meal } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ import { startOfWeek, addWeeks, format, getISOWeek } from "date-fns";
 import { sv, enUS } from "date-fns/locale";
 import { RecipeDetailDialog } from "@/components/RecipeDetailDialog";
 import type { Recipe } from "@/lib/store";
+import { isPantryStaple } from "@shared/ingredient-utils";
 
 // Simple fuzzy match - checks if all characters in query appear in order in target
 function fuzzyMatch(query: string, target: string): { match: boolean; score: number } {
@@ -87,7 +89,12 @@ export default function WeeklyPlan() {
     queryKey: ['/api/shares', viewingShare?.id, 'meals'],
     queryFn: async () => {
       if (!viewingShare) return [];
-      const res = await fetch(`/api/shares/${viewingShare.id}/meals`, { credentials: 'include' });
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch(`/api/shares/${viewingShare.id}/meals`, { credentials: 'include', headers });
       if (!res.ok) throw new Error('Failed to fetch shared meals');
       return res.json();
     },
@@ -99,8 +106,30 @@ export default function WeeklyPlan() {
     queryKey: ['/api/shares', viewingShare?.id, 'recipes'],
     queryFn: async () => {
       if (!viewingShare) return [];
-      const res = await fetch(`/api/shares/${viewingShare.id}/recipes`, { credentials: 'include' });
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch(`/api/shares/${viewingShare.id}/recipes`, { credentials: 'include', headers });
       if (!res.ok) throw new Error('Failed to fetch shared recipes');
+      return res.json();
+    },
+    enabled: !!viewingShare,
+  });
+
+  // Fetch shared plan grocery items if viewing someone else's plan
+  const { data: sharedGroceryItems = [] } = useQuery<any[]>({
+    queryKey: ['/api/shares', viewingShare?.id, 'grocery'],
+    queryFn: async () => {
+      if (!viewingShare) return [];
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch(`/api/shares/${viewingShare.id}/grocery`, { credentials: 'include', headers });
+      if (!res.ok) throw new Error('Failed to fetch shared grocery');
       return res.json();
     },
     enabled: !!viewingShare,
@@ -138,9 +167,10 @@ export default function WeeklyPlan() {
     exitShareView();
   };
 
-  // Use shared meals/recipes or own meals/recipes depending on what we're viewing
+  // Use shared meals/recipes/grocery or own depending on what we're viewing
   const allMeals = viewingShare ? sharedMeals : meals;
   const displayRecipes = viewingShare ? sharedRecipes : recipes;
+  const displayGroceryItems = viewingShare ? sharedGroceryItems : groceryItems;
   
   // Filter meals by the selected week
   const displayMeals = useMemo(() => {
@@ -164,6 +194,7 @@ export default function WeeklyPlan() {
 
   const [isIngredientConfirmOpen, setIsIngredientConfirmOpen] = useState(false);
   const [pendingIngredients, setPendingIngredients] = useState<string[]>([]);
+  const [pendingMealName, setPendingMealName] = useState<string>("");
 
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [mealToMove, setMealToMove] = useState<Meal | null>(null);
@@ -241,14 +272,14 @@ export default function WeeklyPlan() {
     if (isReadOnly) return; // Safety check for read-only mode
     
     // Check if this meal has ingredients in the grocery list
-    const hasIngredients = groceryItems.some(item => item.sourceMeal === meal.name && !item.isBought);
+    const hasIngredients = displayGroceryItems.some(item => item.sourceMeal === meal.name && !item.isBought);
     
-    if (hasIngredients && !viewingShare) {
+    if (hasIngredients) {
       setMealToDelete(meal);
       setHasIngredientsInGrocery(true);
       setIsDeleteConfirmOpen(true);
     } else {
-      // No ingredients in grocery list, or viewing shared plan - just delete
+      // No ingredients in grocery list - just delete
       if (viewingShare) {
         deleteSharedMealMutation.mutate(meal.id);
       } else {
@@ -256,14 +287,29 @@ export default function WeeklyPlan() {
       }
       toast({ title: t("delete"), description: meal.name });
     }
-  }, [isReadOnly, viewingShare, groceryItems, deleteSharedMealMutation, deleteMeal, toast, t]);
+  }, [isReadOnly, viewingShare, displayGroceryItems, deleteSharedMealMutation, deleteMeal, toast, t]);
   
-  const confirmDeleteMeal = (removeIngredients: boolean) => {
+  const confirmDeleteMeal = async (removeIngredients: boolean) => {
     if (!mealToDelete) return;
     if (isReadOnly) return; // Safety check for read-only mode
     
-    if (removeIngredients && !viewingShare) {
-      deleteItemsByMeal(mealToDelete.name);
+    setIsDeleteConfirmOpen(false);
+    
+    if (removeIngredients) {
+      if (viewingShare) {
+        // Delete ingredients from shared grocery list
+        const itemsToDelete = displayGroceryItems.filter(item => item.sourceMeal === mealToDelete.name && !item.isBought);
+        for (const item of itemsToDelete) {
+          try {
+            await apiRequest('DELETE', `/api/shares/${viewingShare.id}/grocery/${item.id}`);
+          } catch (error) {
+            console.error('Failed to delete grocery item:', error);
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare.id, 'grocery'] });
+      } else {
+        deleteItemsByMeal(mealToDelete.name);
+      }
     }
     
     if (viewingShare) {
@@ -271,6 +317,9 @@ export default function WeeklyPlan() {
     } else {
       deleteMeal(mealToDelete.id);
     }
+    
+    setMealToDelete(null);
+    setHasIngredientsInGrocery(false);
     toast({ title: t("delete"), description: mealToDelete.name });
     
     setIsDeleteConfirmOpen(false);
@@ -321,11 +370,18 @@ export default function WeeklyPlan() {
     setSelectedRecipeId(null);
     setIsAddOpen(false);
     
-    if (selectedRecipeId && !viewingShare) {
-      const r = displayRecipes.find(rc => rc.id === selectedRecipeId);
+    // Show ingredient confirmation dialog if recipe has ingredients
+    if (selectedRecipeId) {
+      // Search in both shared and own recipes to find the recipe
+      const r = [...displayRecipes, ...recipes].find(rc => rc.id === selectedRecipeId);
       if (r && r.ingredients.length > 0) {
-        setPendingIngredients(r.ingredients);
-        setIsIngredientConfirmOpen(true);
+        // Filter out pantry staples
+        const filteredIngredients = r.ingredients.filter(ing => !isPantryStaple(ing));
+        if (filteredIngredients.length > 0) {
+          setPendingIngredients(filteredIngredients);
+          setPendingMealName(name);
+          setIsIngredientConfirmOpen(true);
+        }
       }
     }
     
@@ -658,16 +714,37 @@ export default function WeeklyPlan() {
           </DialogHeader>
           <div className="flex flex-col gap-2 pt-4">
             <Button 
-              onClick={() => {
-                addIngredientsToGrocery(pendingIngredients);
+              onClick={async () => {
+                if (viewingShare) {
+                  // Add ingredients to shared grocery list via API
+                  for (const ingredient of pendingIngredients) {
+                    try {
+                      await apiRequest('POST', `/api/shares/${viewingShare.id}/grocery`, { 
+                        name: ingredient,
+                        sourceMeal: pendingMealName 
+                      });
+                    } catch (error) {
+                      console.error('Failed to add ingredient:', error);
+                    }
+                  }
+                  queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare.id, 'grocery'] });
+                } else {
+                  addIngredientsToGrocery(pendingIngredients, pendingMealName);
+                }
                 setIsIngredientConfirmOpen(false);
+                setPendingIngredients([]);
+                setPendingMealName("");
                 toast({ title: "Grocery list updated", description: `${pendingIngredients.length} ingredients added.` });
               }}
               className="rounded-xl bg-primary text-primary-foreground"
             >
               {t("yesAdd")}
             </Button>
-            <Button variant="outline" onClick={() => setIsIngredientConfirmOpen(false)} className="rounded-xl">
+            <Button variant="outline" onClick={() => {
+              setIsIngredientConfirmOpen(false);
+              setPendingIngredients([]);
+              setPendingMealName("");
+            }} className="rounded-xl">
               {t("no")}
             </Button>
           </div>

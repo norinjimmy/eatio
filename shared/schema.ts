@@ -1,23 +1,23 @@
-import { pgTable, text, serial, boolean, integer, jsonb, varchar } from "drizzle-orm/pg-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Recipes
-export const recipes = pgTable("recipes", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull(),
+export const recipes = sqliteTable("recipes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull(),
   name: text("name").notNull(),
   url: text("url"),
-  ingredients: text("ingredients").array().notNull(),
+  ingredients: text("ingredients").notNull(), // JSON string array
   instructions: text("instructions").notNull(),
-  isFavorite: boolean("is_favorite").default(false).notNull(),
+  isFavorite: integer("is_favorite", { mode: 'boolean' }).default(false).notNull(),
   usageCount: integer("usage_count").default(0).notNull(),
 });
 
 // Meals
-export const meals = pgTable("meals", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull(),
+export const meals = sqliteTable("meals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull(),
   day: text("day").notNull(),
   type: text("type").notNull(),
   name: text("name").notNull(),
@@ -27,56 +27,79 @@ export const meals = pgTable("meals", {
 });
 
 // Grocery Items
-export const groceryItems = pgTable("grocery_items", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull(),
+export const groceryItems = sqliteTable("grocery_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull(),
   name: text("name").notNull(),
   normalizedName: text("normalized_name"),
   quantity: integer("quantity").default(1),
   unit: text("unit"),
   category: text("category").default("other"),
-  isBought: boolean("is_bought").default(false).notNull(),
-  isCustom: boolean("is_custom").default(true).notNull(),
+  isBought: integer("is_bought", { mode: 'boolean' }).default(false).notNull(),
+  isCustom: integer("is_custom", { mode: 'boolean' }).default(true).notNull(),
   sourceMeal: text("source_meal"),
 });
 
 // User Settings
-export const userSettings = pgTable("user_settings", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().unique(),
-  workDays: text("work_days").array().default([]).notNull(),
+export const userSettings = sqliteTable("user_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().unique(),
+  workDays: text("work_days").notNull(), // JSON string array
   workShift: text("work_shift").default("day").notNull(),
-  breakfastDays: text("breakfast_days").array().default([]).notNull(),
+  breakfastDays: text("breakfast_days").notNull(), // JSON string array
 });
 
 // Meal Plan Shares - for sharing weekly plans with family members
-export const mealPlanShares = pgTable("meal_plan_shares", {
-  id: serial("id").primaryKey(),
-  ownerId: varchar("owner_id").notNull(),
+export const mealPlanShares = sqliteTable("meal_plan_shares", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerId: text("owner_id").notNull(),
   ownerName: text("owner_name"),
   invitedEmail: text("invited_email").notNull(),
-  invitedUserId: varchar("invited_user_id"),
+  invitedUserId: text("invited_user_id"),
   permission: text("permission").default("view").notNull(),
   status: text("status").default("pending").notNull(),
-  shareToken: varchar("share_token").notNull().unique(),
+  shareToken: text("share_token").notNull().unique(),
   createdAt: text("created_at").notNull(),
 });
 
 // Week History - stores archived weekly meal plans
-export const weekHistory = pgTable("week_history", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull(),
+export const weekHistory = sqliteTable("week_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull(),
   weekStart: text("week_start").notNull(),
-  meals: jsonb("meals").notNull(),
+  meals: text("meals").notNull(), // JSON string
   createdAt: text("created_at").notNull(),
 });
 
-// Schemas
-export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true, userId: true, usageCount: true });
-export const updateRecipeSchema = createInsertSchema(recipes).omit({ id: true, userId: true });
+// Schemas - manually define to accept arrays (they'll be converted to JSON strings in storage)
+export const insertRecipeSchema = createInsertSchema(recipes)
+  .omit({ id: true, userId: true, usageCount: true })
+  .extend({
+    ingredients: z.array(z.string()),
+  });
+export const updateRecipeSchema = createInsertSchema(recipes)
+  .omit({ id: true, userId: true })
+  .extend({
+    ingredients: z.array(z.string()).optional(),
+  });
 export const insertMealSchema = createInsertSchema(meals).omit({ id: true, userId: true });
-export const insertGroceryItemSchema = createInsertSchema(groceryItems).omit({ id: true, userId: true });
-export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({ id: true });
+export const insertGroceryItemSchema = createInsertSchema(groceryItems)
+  .omit({ id: true, userId: true })
+  .extend({
+    normalizedName: z.string().nullable().optional(),
+    quantity: z.number().optional(),
+    unit: z.string().nullable().optional(),
+    category: z.string().optional(),
+    isBought: z.boolean().optional(),
+    isCustom: z.boolean().optional(),
+    sourceMeal: z.string().nullable().optional(),
+  });
+export const insertUserSettingsSchema = createInsertSchema(userSettings)
+  .omit({ id: true })
+  .extend({
+    workDays: z.array(z.string()).optional(),
+    breakfastDays: z.array(z.string()).optional(),
+  });
 export const insertMealPlanShareSchema = createInsertSchema(mealPlanShares).omit({ id: true });
 export const insertWeekHistorySchema = createInsertSchema(weekHistory).omit({ id: true });
 

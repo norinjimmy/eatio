@@ -465,13 +465,31 @@ export function parseIngredient(ingredientText: string): ParsedIngredient {
 export function aggregateIngredients(ingredients: ParsedIngredient[]): ParsedIngredient[] {
   const aggregated = new Map<string, ParsedIngredient>();
   
+  // Common Swedish recipe section headers to filter out
+  const sectionHeaders = /^(ingredienser|pajdeg|deg|fyllning|pajfyllning|sås|servering|till servering|garnering|marinad|dressing|topping|kryddning|smör|bakning|bottom|kaka|frosting|glasyr|crème|creme|dekoration)$/i;
+  
   for (const ing of ingredients) {
-    // Key by normalized name + unit
-    const key = `${ing.normalizedName}|${ing.unit || ''}`;
+    // Skip section headers
+    if (sectionHeaders.test(ing.name.trim())) {
+      continue;
+    }
+    
+    // Key by normalized name (lowercase) + unit (lowercase)
+    // This ensures case-insensitive aggregation
+    const key = `${ing.normalizedName.toLowerCase()}|${(ing.unit || '').toLowerCase()}`;
     
     if (aggregated.has(key)) {
       const existing = aggregated.get(key)!;
+      // Sum quantities
       existing.quantity += ing.quantity;
+      // Preserve any additional properties like sourceMeal
+      if ((ing as any).sourceMeal) {
+        if ((existing as any).sourceMeal && !(existing as any).sourceMeal.includes((ing as any).sourceMeal)) {
+          (existing as any).sourceMeal += `, ${(ing as any).sourceMeal}`;
+        } else if (!(existing as any).sourceMeal) {
+          (existing as any).sourceMeal = (ing as any).sourceMeal;
+        }
+      }
     } else {
       aggregated.set(key, { ...ing });
     }

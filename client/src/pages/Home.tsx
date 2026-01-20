@@ -12,11 +12,32 @@ import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { startOfWeek, format } from "date-fns";
 import { RecipeDetailDialog } from "@/components/RecipeDetailDialog";
+import { useShare } from "@/lib/share-context";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const { t } = useTranslation();
   const { meals, recipes, groceryItems, settings, addMeal, addIngredientsToGrocery } = useStore();
+  const { viewingShare } = useShare();
   const { toast } = useToast();
+  
+  // Fetch shared plan meals if viewing someone else's plan
+  const { data: sharedMeals = [] } = useQuery<Meal[]>({
+    queryKey: ['/api/shares', viewingShare?.id, 'meals'],
+    queryFn: async () => {
+      if (!viewingShare) return [];
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch(`/api/shares/${viewingShare.id}/meals`, { credentials: 'include', headers });
+      if (!res.ok) throw new Error('Failed to fetch shared meals');
+      return res.json();
+    },
+    enabled: !!viewingShare,
+  });
   
   const [isAddToPlanOpen, setIsAddToPlanOpen] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -83,13 +104,17 @@ export default function Home() {
   const workDays = settings?.workDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-  const todaysMealsList = meals.filter(m => m.day === today);
+  
+  // Use shared meals if viewing a shared plan, otherwise use own meals
+  const displayMeals = viewingShare ? sharedMeals : meals;
+  
+  const todaysMealsList = displayMeals.filter(m => m.day === today);
   const lunch = todaysMealsList.find(m => m.type === 'Lunch');
   const dinner = todaysMealsList.find(m => m.type === 'Dinner');
   const isWorkDay = workDays.includes(today);
 
   const plannedDaysCount = DAYS.filter(day => 
-    meals.some(m => m.day === day)
+    displayMeals.some(m => m.day === day)
   ).length;
 
   const totalRecipes = recipes.length;

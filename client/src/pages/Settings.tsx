@@ -27,7 +27,7 @@ export default function SettingsPage() {
   const { t } = useTranslation();
   const { settings, updateSettings } = useStore();
   const { setViewingShare } = useShare();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [inviteEmail, setInviteEmail] = useState("");
@@ -352,7 +352,7 @@ export default function SettingsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => { window.location.href = '/api/logout'; }}
+                    onClick={logout}
                     data-testid="button-logout"
                   >
                     <LogOut className="h-4 w-4 mr-2" />

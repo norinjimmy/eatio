@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from './queryClient';
 import type { Recipe, Meal, GroceryItem, UserSettings } from '@shared/schema';
 import { categorizeIngredient } from '@shared/ingredient-utils';
+import { startOfWeek, format } from 'date-fns';
 
 interface StoreContextType {
   recipes: Recipe[];
@@ -242,8 +243,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const regenerateGroceryList = async () => {
+    // Calculate current week start (Monday)
+    const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    
     // Use server-side processing for proper parsing, filtering, aggregation, and categorization
-    await apiRequest('POST', '/api/grocery/regenerate');
+    await apiRequest('POST', '/api/grocery/regenerate', { weekStart });
     queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
   };
 

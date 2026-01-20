@@ -16,6 +16,7 @@ import Favorites from "@/pages/Favorites";
 import SettingsPage from "@/pages/Settings";
 import History from "@/pages/History";
 import LandingPage from "@/pages/Landing";
+import LoginPage from "@/pages/Login";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -49,10 +50,18 @@ function AppContent() {
     );
   }
 
+  // If not authenticated, show landing or login
   if (!user) {
-    return <LandingPage />;
+    return (
+      <Switch>
+        <Route path="/login" component={LoginPage} />
+        <Route path="/" component={LandingPage} />
+        <Route component={LandingPage} />
+      </Switch>
+    );
   }
 
+  // If authenticated, show app routes
   return <AuthenticatedRouter />;
 }
 

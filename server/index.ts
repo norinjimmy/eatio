@@ -1,7 +1,12 @@
+import "dotenv/config";
+import "express-async-errors"; // Must be imported before express routes
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+
+// Disable SSL certificate validation for development (allows scraping sites with self-signed certs)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const app = express();
 const httpServer = createServer(app);
@@ -86,14 +91,18 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
+  
+  // Windows doesn't support reusePort, so only use it on Linux/Mac
+  const listenOptions: any = {
+    port,
+    host: "0.0.0.0",
+  };
+  
+  if (process.platform !== 'win32') {
+    listenOptions.reusePort = true;
+  }
+  
+  httpServer.listen(listenOptions, () => {
+    log(`serving on port ${port}`);
+  });
 })();

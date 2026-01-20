@@ -8,6 +8,23 @@ export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // For local development without Replit auth, create a default guest user
+      if (!process.env.REPL_ID && userId === 'guest-user') {
+        let user = await authStorage.getUser(userId);
+        if (!user) {
+          await authStorage.upsertUser({
+            id: 'guest-user',
+            email: 'guest@local.dev',
+            firstName: 'Guest',
+            lastName: 'User',
+            profileImageUrl: null,
+          });
+          user = await authStorage.getUser(userId);
+        }
+        return res.json(user);
+      }
+      
       const user = await authStorage.getUser(userId);
       res.json(user);
     } catch (error) {

@@ -4,11 +4,15 @@ import { useTranslation } from "@/lib/i18n";
 import { useStore, GroceryItem } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, HelpCircle } from "lucide-react";
+import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, HelpCircle, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CATEGORY_NAMES, CATEGORY_ORDER, type GroceryCategory } from "@shared/ingredient-utils";
+import { useShare } from "@/lib/share-context";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
 
 // Category icons
 const CATEGORY_ICONS: Record<GroceryCategory, React.ReactNode> = {
@@ -26,31 +30,113 @@ export default function GroceryList() {
   const { t, language } = useTranslation();
   const { groceryItems, addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, clearAllItems, regenerateGroceryList } = useStore();
   const { toast } = useToast();
+  const { viewingShare, canEdit: shareCanEdit, exitShareView } = useShare();
   
   const [newItem, setNewItem] = useState("");
 
+  // Fetch shared grocery list if viewing someone else's plan
+  const { data: sharedGroceryItems = [] } = useQuery<GroceryItem[]>({
+    queryKey: ['/api/shares', viewingShare?.id, 'grocery'],
+    queryFn: async () => {
+      if (!viewingShare) return [];
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch(`/api/shares/${viewingShare.id}/grocery`, { credentials: 'include', headers });
+      if (!res.ok) throw new Error('Failed to fetch shared grocery list');
+      return res.json();
+    },
+    enabled: !!viewingShare,
+  });
+
+  // Mutation for toggling shared grocery items
+  const toggleSharedItemMutation = useMutation({
+    mutationFn: async ({ itemId, isBought }: { itemId: number; isBought: boolean }) => {
+      return apiRequest('PATCH', `/api/shares/${viewingShare?.id}/grocery/${itemId}`, { isBought });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
+    },
+  });
+
+  // Mutation for adding shared grocery items
+  const addSharedItemMutation = useMutation({
+    mutationFn: async (name: string) => {
+      return apiRequest('POST', `/api/shares/${viewingShare?.id}/grocery`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
+    },
+  });
+
+  // Mutation for deleting shared grocery items
+  const deleteSharedItemMutation = useMutation({
+    mutationFn: async (itemId: number) => {
+      return apiRequest('DELETE', `/api/shares/${viewingShare?.id}/grocery/${itemId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
+    },
+  });
+
+  // Use shared grocery items or own items depending on what we're viewing
+  const displayGroceryItems = viewingShare ? sharedGroceryItems : groceryItems;
+  const canEdit = viewingShare ? shareCanEdit : true;
+
   const handleAdd = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!newItem.trim()) return;
-    addGroceryItem(newItem);
+    if (!newItem.trim() || !canEdit) return;
+    
+    if (viewingShare) {
+      addSharedItemMutation.mutate(newItem);
+    } else {
+      addGroceryItem(newItem);
+    }
     setNewItem("");
   };
 
-  const handleRegenerate = () => {
-    const confirmMsg = language === 'sv' 
-      ? "Detta lägger till varor från din veckoplan till listan. Fortsätt?" 
-      : "This will add items from your weekly plan to the list. Continue?";
-    if (confirm(confirmMsg)) {
-      regenerateGroceryList();
-      const title = language === 'sv' ? "Lista uppdaterad" : "List Updated";
-      const desc = language === 'sv' ? "Varor från veckoplan tillagda." : "Items from weekly plan added.";
-      toast({ title, description: desc });
+  const handleToggle = (itemId: number, currentBought: boolean) => {
+    if (viewingShare) {
+      toggleSharedItemMutation.mutate({ itemId, isBought: !currentBought });
+    } else {
+      toggleGroceryItem(itemId);
     }
+  };
+
+  const handleDelete = (itemId: number) => {
+    if (!canEdit) return;
+    
+    if (viewingShare) {
+      deleteSharedItemMutation.mutate(itemId);
+    } else {
+      deleteGroceryItem(itemId);
+    }
+  };
+
+  const handleRegenerate = () => {
+    if (!canEdit) return;
+    regenerateGroceryList();
+    const title = language === 'sv' ? "Lista uppdaterad" : "List Updated";
+    const desc = language === 'sv' ? "Varor från veckoplan tillagda." : "Items from weekly plan added.";
+    toast({ title, description: desc });
+  };
+
+  const handleClearBought = () => {
+    if (!canEdit) return;
+    clearBoughtItems();
+  };
+
+  const handleClearAll = () => {
+    if (!canEdit) return;
+    clearAllItems();
+    toast({ title: t("itemsCleared") });
   };
   
   // Group items by category
   const groupedItems = CATEGORY_ORDER.reduce((acc, category) => {
-    const categoryItems = groceryItems.filter(item => 
+    const categoryItems = displayGroceryItems.filter(item => 
       (item.category || 'other') === category
     );
     if (categoryItems.length > 0) {
@@ -64,26 +150,43 @@ export default function GroceryList() {
   }, {} as Record<GroceryCategory, GroceryItem[]>);
   
   // Collect bought items from all categories
-  const boughtItems = groceryItems.filter(i => i.isBought);
+  const boughtItems = displayGroceryItems.filter(i => i.isBought);
 
   return (
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-2xl font-display font-bold">{t("groceryList")}</h2>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRegenerate}
-              className="rounded-full text-xs"
-              data-testid="button-regenerate-list"
-            >
-              <RefreshCw size={14} className="mr-1.5" />
-              {t("generatedFromPlan")}
-            </Button>
+            {viewingShare && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={exitShareView}
+                className="h-8 w-8"
+              >
+                <ArrowLeft size={18} />
+              </Button>
+            )}
+            <h2 className="text-2xl font-display font-bold">
+              {t("groceryList")}
+              {viewingShare && <span className="text-sm font-normal text-muted-foreground ml-2">({t("shared")})</span>}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRegenerate}
+                className="rounded-full text-xs"
+                data-testid="button-regenerate-list"
+              >
+                <RefreshCw size={14} className="mr-1.5" />
+                {t("generatedFromPlan")}
+              </Button>
+            )}
             
-            {groceryItems.length > 0 && (
+            {displayGroceryItems.length > 0 && canEdit && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" data-testid="button-grocery-menu">
@@ -92,12 +195,7 @@ export default function GroceryList() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl">
                   <DropdownMenuItem 
-                    onClick={() => {
-                      if (confirm(t("confirmClearAll"))) {
-                        clearAllItems();
-                        toast({ title: t("itemsCleared") });
-                      }
-                    }}
+                    onClick={handleClearAll}
                     className="text-sm text-destructive"
                     data-testid="menu-item-clear-all"
                   >
@@ -111,20 +209,22 @@ export default function GroceryList() {
         </div>
 
         {/* Add Item Input */}
-        <form onSubmit={handleAdd} className="flex gap-2" data-testid="form-add-item">
-          <Input 
-            value={newItem} 
-            onChange={(e) => setNewItem(e.target.value)}
-            placeholder={t("addItem") + "..."}
-            className="rounded-xl bg-card border-none shadow-sm h-12"
-            data-testid="input-new-item"
-          />
-          <Button type="submit" size="icon" className="h-12 w-12 rounded-xl shrink-0" data-testid="button-add-item">
-            <Plus />
-          </Button>
-        </form>
+        {canEdit && (
+          <form onSubmit={handleAdd} className="flex gap-2" data-testid="form-add-item">
+            <Input 
+              value={newItem} 
+              onChange={(e) => setNewItem(e.target.value)}
+              placeholder={t("addItem") + "..."}
+              className="rounded-xl bg-card border-none shadow-sm h-12"
+              data-testid="input-new-item"
+            />
+            <Button type="submit" size="icon" className="h-12 w-12 rounded-xl shrink-0" data-testid="button-add-item">
+              <Plus />
+            </Button>
+          </form>
+        )}
 
-        {groceryItems.length === 0 ? (
+        {displayGroceryItems.length === 0 ? (
           <div className="text-center py-12 opacity-50 border-2 border-dashed border-border rounded-2xl">
             <p>{t("noItems")}</p>
           </div>
@@ -150,8 +250,9 @@ export default function GroceryList() {
                       <GroceryListItem 
                         key={item.id} 
                         item={item} 
-                        onToggle={() => toggleGroceryItem(item.id)}
-                        onDelete={() => deleteGroceryItem(item.id)}
+                        onToggle={() => handleToggle(item.id, item.isBought)}
+                        onDelete={() => handleDelete(item.id)}
+                        canEdit={canEdit}
                       />
                     ))}
                   </div>
@@ -161,11 +262,11 @@ export default function GroceryList() {
           </div>
         )}
         
-        {boughtItems.length > 0 && (
+        {boughtItems.length > 0 && canEdit && (
           <div className="pt-4 flex justify-center">
             <Button 
               variant="ghost" 
-              onClick={clearBoughtItems} 
+              onClick={handleClearBought} 
               className="text-muted-foreground text-xs"
               data-testid="button-clear-bought"
             >
@@ -180,7 +281,7 @@ export default function GroceryList() {
   );
 }
 
-function GroceryListItem({ item, onToggle, onDelete }: { item: GroceryItem, onToggle: () => void, onDelete: () => void }) {
+function GroceryListItem({ item, onToggle, onDelete, canEdit }: { item: GroceryItem, onToggle: () => void, onDelete: () => void, canEdit: boolean }) {
   return (
     <div 
       className={cn(
@@ -210,15 +311,17 @@ function GroceryListItem({ item, onToggle, onDelete }: { item: GroceryItem, onTo
         </div>
       </div>
       
-      <Button 
-        variant="ghost"
-        size="icon"
-        onClick={onDelete}
-        className="p-2 text-muted-foreground/30"
-        data-testid={`button-delete-item-${item.id}`}
-      >
-        <Trash2 size={16} />
-      </Button>
+      {canEdit && (
+        <Button 
+          variant="ghost"
+          size="icon"
+          onClick={onDelete}
+          className="p-2 text-muted-foreground/30"
+          data-testid={`button-delete-item-${item.id}`}
+        >
+          <Trash2 size={16} />
+        </Button>
+      )}
     </div>
   );
 }
