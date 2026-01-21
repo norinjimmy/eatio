@@ -5,7 +5,8 @@
   },
   "deploy": {
     "installCommand": "npm install",
-    "startCommand": "npm run start",
+    "buildCommand": "npm run build",
+    "startCommand": "npm run db:migrate && npm run start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
