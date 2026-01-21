@@ -30,13 +30,18 @@ async function initializeDb() {
         connectionString,
         ssl: {
           rejectUnauthorized: false
-        }
+        },
+        // Connection pool optimization for faster responses
+        max: 20,                    // Maximum connections in pool
+        min: 2,                     // Minimum connections to keep open
+        idleTimeoutMillis: 30000,   // Close idle connections after 30s
+        connectionTimeoutMillis: 5000, // Timeout after 5s if no connection available
+        allowExitOnIdle: false      // Don't let Node exit with idle connections
       });
       
       console.log("Creating drizzle instance...");
       db = drizzle(pool, { schema });
       console.log("=== DB INIT SUCCESS ===");
-console.log("=== DB INIT SUCCESS ===");
     } else {
       // Use SQLite in development - dynamic import
       const { drizzle: drizzleSqlite } = await import("drizzle-orm/better-sqlite3");

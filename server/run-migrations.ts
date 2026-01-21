@@ -171,6 +171,17 @@ async function runMigrations() {
     `);
     console.log("✓ Created messages table");
 
+    // Create indexes for better query performance
+    console.log("Creating indexes for performance...");
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_recipes_user_id ON recipes(user_id);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_meals_user_id ON meals(user_id);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_meals_week ON meals(user_id, week_start);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_grocery_user_id ON grocery_items(user_id);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_messages_conv_id ON messages(conversation_id);`);
+    console.log("✓ Created indexes");
+
     console.log("=== ALL TABLES CREATED SUCCESSFULLY ===");
   } catch (error) {
     console.error("Migration failed:", error);
