@@ -4,6 +4,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { dbPromise } from "./db";
 
 // Disable SSL certificate validation for development (allows scraping sites with self-signed certs)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -66,6 +67,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Wait for database initialization
+  await dbPromise;
+  log("Database initialized");
+  
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
