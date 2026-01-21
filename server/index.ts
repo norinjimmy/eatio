@@ -6,6 +6,13 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { dbPromise } from "./db";
 
+console.log("=== SERVER START ===");
+console.log("Environment variables:");
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
+console.log("PORT:", process.env.PORT || 5000);
+console.log("===================");
+
 // Disable SSL certificate validation for development (allows scraping sites with self-signed certs)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -67,11 +74,18 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Wait for database initialization
-  await dbPromise;
-  log("Database initialized");
-  
-  await registerRoutes(httpServer, app);
+  try {
+    console.log("Starting async initialization...");
+    
+    // Wait for database initialization
+    console.log("Waiting for database initialization...");
+    await dbPromise;
+    log("Database initialized");
+    console.log("Database promise resolved");
+    
+    console.log("Registering routes...");
+    await registerRoutes(httpServer, app);
+    console.log("Routes registered");
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -107,7 +121,16 @@ app.use((req, res, next) => {
     listenOptions.reusePort = true;
   }
   
+  console.log("Starting HTTP server...");
   httpServer.listen(listenOptions, () => {
     log(`serving on port ${port}`);
+    console.log("Server listening successfully");
   });
+  
+  } catch (error) {
+    console.error("=== FATAL ERROR IN ASYNC INIT ===");
+    console.error("Error:", error);
+    console.error("Stack:", error instanceof Error ? error.stack : "No stack");
+    process.exit(1);
+  }
 })();
