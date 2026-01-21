@@ -22,128 +22,151 @@ async function runMigrations() {
   const db = drizzle(pool, { schema });
 
   try {
+    // Drop existing tables if FORCE_RESET is set (for fixing schema issues)
+    if (process.env.FORCE_RESET === "true") {
+      console.log("⚠️  FORCE_RESET=true, dropping all tables...");
+      await db.execute(sql`DROP TABLE IF EXISTS messages CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS conversations CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS meal_plan_shares CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS week_history CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS grocery_items CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS meals CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS recipes CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS user_settings CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS sessions CASCADE;`);
+      await db.execute(sql`DROP TABLE IF EXISTS users CASCADE;`);
+      console.log("✓ All tables dropped");
+    }
+
     console.log("Creating tables from schema...");
     
-    // Create tables based on schema
-    // This creates all the tables defined in shared/schema.ts
+    // Users table - for authentication (not defined in schema.ts, but needed by auth system)
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        created_at TEXT NOT NULL
       );
     `);
     console.log("✓ Created users table");
 
+    // Sessions table - for authentication
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        expires_at TIMESTAMP NOT NULL
+        user_id TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
       );
     `);
     console.log("✓ Created sessions table");
 
+    // User Settings table - matches schema exactly
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS user_settings (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        language TEXT DEFAULT 'sv',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        user_id TEXT NOT NULL UNIQUE,
+        work_days TEXT NOT NULL,
+        work_shift TEXT DEFAULT 'day' NOT NULL,
+        breakfast_days TEXT NOT NULL
       );
     `);
     console.log("✓ Created user_settings table");
 
+    // Recipes table - matches schema exactly
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS recipes (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
         name TEXT NOT NULL,
         url TEXT,
         ingredients TEXT NOT NULL,
-        instructions TEXT,
-        is_favorite BOOLEAN DEFAULT FALSE,
-        usage_count INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        instructions TEXT NOT NULL,
+        is_favorite BOOLEAN DEFAULT FALSE NOT NULL,
+        usage_count INTEGER DEFAULT 0 NOT NULL
       );
     `);
     console.log("✓ Created recipes table");
 
+    // Meals table - matches schema exactly
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS meals (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        recipe_id INTEGER REFERENCES recipes(id) ON DELETE SET NULL,
-        name TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        day TEXT NOT NULL,
         type TEXT NOT NULL,
-        day_of_week INTEGER NOT NULL,
-        week INTEGER NOT NULL,
-        year INTEGER NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        name TEXT NOT NULL,
+        notes TEXT,
+        recipe_id INTEGER,
+        week_start TEXT
       );
     `);
     console.log("✓ Created meals table");
 
+    // Grocery Items table - matches schema exactly
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS grocery_items (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
         name TEXT NOT NULL,
-        quantity TEXT,
-        category TEXT,
-        checked BOOLEAN DEFAULT FALSE,
-        week INTEGER NOT NULL,
-        year INTEGER NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        normalized_name TEXT,
+        quantity INTEGER DEFAULT 1,
+        unit TEXT,
+        category TEXT DEFAULT 'other',
+        is_bought BOOLEAN DEFAULT FALSE NOT NULL,
+        is_custom BOOLEAN DEFAULT TRUE NOT NULL,
+        source_meal TEXT
       );
     `);
     console.log("✓ Created grocery_items table");
 
+    // Week History table - matches schema exactly
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS week_history (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        week INTEGER NOT NULL,
-        year INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        week_start TEXT NOT NULL,
         meals TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, week, year)
+        created_at TEXT NOT NULL
       );
     `);
     console.log("✓ Created week_history table");
 
+    // Meal Plan Shares table - matches schema exactly
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS meal_plan_shares (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        share_code TEXT UNIQUE NOT NULL,
-        expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        owner_id TEXT NOT NULL,
+        owner_name TEXT,
+        invited_email TEXT NOT NULL,
+        invited_user_id TEXT,
+        permission TEXT DEFAULT 'view' NOT NULL,
+        status TEXT DEFAULT 'pending' NOT NULL,
+        share_token TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL
       );
     `);
     console.log("✓ Created meal_plan_shares table");
 
+    // Conversations table - from chat models
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS conversations (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
         title TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       );
     `);
     console.log("✓ Created conversations table");
 
+    // Messages table - from chat models
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS messages (
         id SERIAL PRIMARY KEY,
-        conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        conversation_id INTEGER NOT NULL,
         role TEXT NOT NULL,
         content TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT NOT NULL
       );
     `);
     console.log("✓ Created messages table");
