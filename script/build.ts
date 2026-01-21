@@ -23,7 +23,7 @@ const allowlist = [
   "openai",
   "passport",
   "passport-local",
-  "pg",
+  // "pg", // DO NOT BUNDLE - native package with dynamic requires
   "stripe",
   "uuid",
   "ws",
