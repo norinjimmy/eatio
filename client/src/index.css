@@ -4,6 +4,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safe area insets for mobile devices */
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  /* Allow scrolling on body */
+  overflow: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* Respect safe areas on mobile (notches, navigation bars) */
+  padding-top: max(env(safe-area-inset-top), 28px);
+  /* Bottom padding handled by BottomNav component */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Custom utility classes for safe areas */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Minimum padding for devices without safe areas */
+  .pb-safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
+}
+
 :root {
   /* Colorful, family-friendly palette */
   --font-sans: 'Quicksand', sans-serif;

@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +7,9 @@ import { LanguageProvider } from "@/lib/i18n";
 import { StoreProvider } from "@/lib/store";
 import { ShareProvider } from "@/lib/share-context";
 import { useAuth } from "@/hooks/use-auth";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { useOAuthDeepLink } from "@/hooks/use-oauth-deeplink";
+import { useStatusBar } from "@/hooks/use-status-bar";
 
 import Home from "@/pages/Home";
 import WeeklyPlan from "@/pages/WeeklyPlan";
@@ -17,6 +20,7 @@ import SettingsPage from "@/pages/Settings";
 import History from "@/pages/History";
 import LandingPage from "@/pages/Landing";
 import LoginPage from "@/pages/Login";
+import LoginCallback from "@/pages/LoginCallback";
 import NotFound from "@/pages/not-found";
 import { Loader2 } from "lucide-react";
 
@@ -41,6 +45,19 @@ function AuthenticatedRouter() {
 
 function AppContent() {
   const { user, isLoading } = useAuth();
+  const [location] = useLocation();
+  
+  // Handle OAuth deep links on mobile
+  useOAuthDeepLink();
+  
+  // Configure status bar for mobile
+  useStatusBar();
+
+  // Login callback route - must be before auth check
+  // Check both wouter location and window.location for compatibility
+  if (location.includes('login-callback') || window.location.pathname.includes('login-callback')) {
+    return <LoginCallback />;
+  }
 
   if (isLoading) {
     return (
@@ -70,6 +87,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <TooltipProvider>
+          {/* ErrorDisplay removed - was blocking interactions */}
           <Toaster />
           <AppContent />
         </TooltipProvider>

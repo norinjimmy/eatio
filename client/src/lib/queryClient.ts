@@ -1,6 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 
+// Hardcoded for mobile - env vars not reliable in production build
+const API_BASE_URL = 'https://eatio-production.up.railway.app';
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -25,12 +28,12 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const headers = await getAuthHeaders();
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
   
-  const res = await fetch(url, {
+  const res = await fetch(fullUrl, {
     method,
-    headers: data ? headers : (headers['Authorization'] ? { 'Authorization': headers['Authorization'] } : {}),
+    headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -44,10 +47,11 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const headers = await getAuthHeaders();
+    const url = queryKey.join("/") as string;
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
     
-    const res = await fetch(queryKey.join("/") as string, {
+    const res = await fetch(fullUrl, {
       headers,
-      credentials: "include",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

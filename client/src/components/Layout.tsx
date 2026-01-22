@@ -13,9 +13,9 @@ export default function Layout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-24">
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* Top Bar for Mobile */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
           <img src={eatioLogo} alt="Eatio Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
           <h1 className="text-xl font-bold font-display bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
@@ -35,7 +35,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
       
-      <main className="max-w-md mx-auto px-4 py-4 sm:max-w-2xl lg:max-w-4xl animate-in fade-in duration-500">
+      <main className="flex-1 overflow-y-auto max-w-md mx-auto w-full px-4 py-4 pb-24 sm:max-w-2xl lg:max-w-4xl">
         {children}
       </main>
       

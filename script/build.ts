@@ -1,6 +1,17 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
+import { config } from "dotenv";
+import path from "path";
+
+// Load environment variables
+config({ path: path.resolve(process.cwd(), ".env") });
+config({ path: path.resolve(process.cwd(), ".env.production"), override: true });
+
+console.log('[Build] Environment check:');
+console.log('  VITE_SUPABASE_URL:', process.env.VITE_SUPABASE_URL ? 'Set' : 'MISSING');
+console.log('  VITE_SUPABASE_ANON_KEY:', process.env.VITE_SUPABASE_ANON_KEY ? 'Set' : 'MISSING');
+console.log('  VITE_API_URL:', process.env.VITE_API_URL ? 'Set' : 'MISSING');
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -36,7 +47,11 @@ async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
   console.log("building client...");
-  await viteBuild();
+  // Vite will automatically load .env.production in production mode
+  await viteBuild({ 
+    mode: 'production',
+    envFile: '.env.production'
+  });
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));

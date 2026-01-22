@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Mail } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -93,13 +95,29 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+      
+      // Use custom URL scheme for mobile app
+      const redirectTo = Capacitor.isNativePlatform() 
+        ? 'com.eatio.app://login-callback'
+        : window.location.origin;
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo,
+          skipBrowserRedirect: Capacitor.isNativePlatform(), // Don't auto-redirect on mobile
         },
       });
+      
       if (error) throw error;
+      
+      // On mobile, open the OAuth URL in in-app browser
+      if (Capacitor.isNativePlatform() && data?.url) {
+        await Browser.open({ 
+          url: data.url,
+          presentationStyle: 'popover',
+        });
+      }
     } catch (error: any) {
       toast({
         title: 'Fel',
@@ -113,13 +131,27 @@ export default function LoginPage() {
   const handleAppleSignIn = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+      
+      const redirectTo = Capacitor.isNativePlatform() 
+        ? 'com.eatio.app://login-callback'
+        : window.location.origin;
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo,
+          skipBrowserRedirect: Capacitor.isNativePlatform(),
         },
       });
+      
       if (error) throw error;
+      
+      if (Capacitor.isNativePlatform() && data?.url) {
+        await Browser.open({ 
+          url: data.url,
+          presentationStyle: 'popover',
+        });
+      }
     } catch (error: any) {
       toast({
         title: 'Fel',
