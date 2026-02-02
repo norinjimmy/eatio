@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, X, Utensils, Coffee, GripVertical, ArrowLeft, Users, Archive, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, X, Utensils, Coffee, GripVertical, ArrowLeft, Users, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -71,7 +71,8 @@ export default function WeeklyPlan() {
   
   // Week navigation state
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => getWeekStart(new Date()));
-  const currentWeekStart = useMemo(() => getWeekStart(new Date()), []);
+  // Calculate current week fresh each time to detect new weeks
+  const currentWeekStart = getWeekStart(new Date());
   const isCurrentWeek = formatWeekStartDate(selectedWeekStart) === formatWeekStartDate(currentWeekStart);
   const weekNumber = getISOWeek(selectedWeekStart);
   const selectedWeekStartStr = formatWeekStartDate(selectedWeekStart);
@@ -456,16 +457,6 @@ export default function WeeklyPlan() {
                     <Clock size={16} className="mr-1" /> {t("history")}
                   </Button>
                 </Link>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => archiveMutation.mutate()} 
-                  disabled={archiveMutation.isPending}
-                  className="rounded-full"
-                  data-testid="button-archive-week"
-                >
-                  <Archive size={16} className="mr-1" /> {t("archiveWeek")}
-                </Button>
                 <Button size="sm" onClick={() => setIsAddOpen(true)} className="rounded-full shadow-md bg-primary hover:bg-primary/90">
                   <Plus size={18} className="mr-1" /> {t("add")}
                 </Button>

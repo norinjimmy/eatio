@@ -378,9 +378,14 @@ export async function registerRoutes(
   app.post('/api/grocery/regenerate', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
+      const { weekStart } = req.body as { weekStart?: string };
       
       // Get all meals and recipes
-      const meals = await storage.getMeals(userId);
+      const allMeals = await storage.getMeals(userId);
+      // Filter meals by weekStart if provided
+      const meals = weekStart 
+        ? allMeals.filter(m => m.weekStart === weekStart)
+        : allMeals;
       const recipes = await storage.getRecipes(userId);
       
       // Collect all ingredients from meals with linked recipes
@@ -457,11 +462,49 @@ export async function registerRoutes(
       // Parse ingredients
       const parsedIngredients = filteredIngredients.map(ing => parseIngredient(ing));
       
-      // Aggregate similar ingredients
-      const aggregated = aggregateIngredients(parsedIngredients);
+      // Get existing grocery items to check for duplicates BEFORE aggregating
+      const existingItems = await storage.getGroceryItems(userId);
       
-      // Create grocery items
+      // Separate into existing and new ingredients
+      const toUpdate: Array<{ existing: any; parsed: any }> = [];
+      const toCreate: any[] = [];
+      
+      for (const parsed of parsedIngredients) {
+        const existing = existingItems.find(item => 
+          item.normalizedName?.toLowerCase() === parsed.normalizedName.toLowerCase() &&
+          (item.unit || '').toLowerCase() === (parsed.unit || '').toLowerCase()
+        );
+        
+        if (existing) {
+          toUpdate.push({ existing, parsed });
+        } else {
+          toCreate.push(parsed);
+        }
+      }
+      
+      // Aggregate only the new items to create
+      const aggregated = aggregateIngredients(toCreate);
+      
+      // Create or update grocery items
       const newItems = [];
+      
+      // Update existing items
+      for (const { existing, parsed } of toUpdate) {
+        const newQuantity = (existing.quantity || 1) + Math.round(parsed.quantity || 1);
+        const updatedSourceMeal = sourceMeal && existing.sourceMeal !== sourceMeal
+          ? `${existing.sourceMeal || ''}, ${sourceMeal}`.replace(/^, /, '')
+          : existing.sourceMeal || sourceMeal || null;
+        
+        const displayName = formatIngredient({ ...parsed, quantity: newQuantity });
+        const updated = await storage.updateGroceryItem(userId, existing.id, {
+          quantity: newQuantity,
+          sourceMeal: updatedSourceMeal,
+          name: displayName,
+        });
+        newItems.push(updated);
+      }
+      
+      // Create new items from aggregated
       for (const parsed of aggregated) {
         const displayName = formatIngredient(parsed);
         const category = categorizeIngredient(parsed.normalizedName);
@@ -972,6 +1015,10 @@ Only return the JSON, no other text.`
       }
       
       const input = api.grocery.create.input.parse(req.body);
+      // Ensure categorization happens if not provided
+      if (!input.category && input.name) {
+        input.category = categorizeIngredient(input.normalizedName || input.name);
+      }
       const created = await storage.createGroceryItem({ ...input, userId: share.ownerId });
       res.status(201).json(created);
     } catch (err) {

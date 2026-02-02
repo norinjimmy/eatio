@@ -19,7 +19,7 @@ export default function BottomNav() {
   return (
     <div 
       className="fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-border/50 z-50 shadow-[0_-5px_20px_-10px_rgba(0,0,0,0.1)]"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0rem)' }}
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}
     >
       <nav className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
         {tabs.map((tab) => {
@@ -28,18 +28,18 @@ export default function BottomNav() {
             <Link key={tab.path} href={tab.path} className="flex-1">
               <div
                 className={cn(
-                  "flex flex-col items-center justify-center h-full space-y-1 cursor-pointer transition-all duration-200",
+                  "flex flex-col items-center justify-center h-full space-y-1 cursor-pointer transition-all duration-200 active:scale-95",
                   isActive 
-                    ? "text-primary scale-110 font-medium" 
-                    : "text-muted-foreground hover:text-foreground active:scale-95"
+                    ? "text-primary font-medium" 
+                    : "text-muted-foreground"
                 )}
               >
                 <tab.icon
-                  size={24}
+                  size={22}
                   strokeWidth={isActive ? 2.5 : 2}
                   className={cn("transition-colors", isActive && "fill-primary/10")}
                 />
-                <span className="text-[10px] sm:text-xs truncate max-w-[64px]">
+                <span className="text-[10px] truncate max-w-[64px]">
                   {tab.label}
                 </span>
               </div>

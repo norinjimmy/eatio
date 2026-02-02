@@ -13,12 +13,14 @@ export default function Layout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
+    <div className="flex flex-col min-h-screen max-w-full overflow-x-hidden bg-background text-foreground">
       {/* Top Bar for Mobile */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center justify-between flex-shrink-0">
+      <header 
+        className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-2 flex items-center justify-between flex-shrink-0"
+      >
         <div className="flex items-center gap-2">
-          <img src={eatioLogo} alt="Eatio Logo" className="w-8 h-8 rounded-lg object-cover shadow-sm" />
-          <h1 className="text-xl font-bold font-display bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          <img src={eatioLogo} alt="Eatio" className="w-7 h-7 rounded-lg object-cover" />
+          <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Eatio
           </h1>
         </div>
@@ -28,15 +30,17 @@ export default function Layout({ children }: { children: ReactNode }) {
             variant="ghost" 
             size="sm" 
             onClick={toggleLang}
-            className="text-xs font-semibold rounded-full px-3 h-8 bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            className="text-xs font-semibold rounded-full px-2.5 h-7 bg-secondary text-secondary-foreground active:scale-95"
           >
-            {language === 'sv' ? '🇸🇪 SV' : '🇬🇧 EN'}
+            {language === 'sv' ? '🇸🇪' : '🇬🇧'}
           </Button>
         </div>
       </header>
       
-      <main className="flex-1 overflow-y-auto max-w-md mx-auto w-full px-4 py-4 pb-24 sm:max-w-2xl lg:max-w-4xl">
-        {children}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full px-3 py-3 pb-32">
+        <div className="max-w-full overflow-x-hidden">
+          {children}
+        </div>
       </main>
       
       <BottomNav />

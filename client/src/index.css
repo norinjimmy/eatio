@@ -1,33 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Safe area insets for mobile devices */
+/* Mobile-first optimizations */
 html {
   height: 100%;
   overflow: hidden;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 body {
   padding: 0;
+  padding-top: env(safe-area-inset-top);
   margin: 0;
   height: 100%;
-  /* Allow scrolling on body */
+  width: 100%;
+  max-width: 100vw;
   overflow: auto;
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+  touch-action: pan-y;
 }
 
 #root {
   height: 100%;
+  width: 100%;
+  max-width: 100vw;
   display: flex;
   flex-direction: column;
-  /* Respect safe areas on mobile (notches, navigation bars) */
-  padding-top: max(env(safe-area-inset-top), 28px);
-  /* Bottom padding handled by BottomNav component */
+  padding-top: env(safe-area-inset-top);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  overflow-x: hidden;
+}
+
+/* Prevent text selection on UI elements but allow in content */
+button, a, [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Custom utility classes for safe areas */
@@ -124,7 +143,15 @@ body {
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
+  
+  /* Prevent any element from causing horizontal overflow */
+  img, video, iframe, embed, object {
+    max-width: 100%;
+    height: auto;
+  }
+  
   body {
     @apply bg-background text-foreground font-sans antialiased selection:bg-primary/20;
     font-family: var(--font-sans);

@@ -213,6 +213,26 @@ const INGREDIENT_SYNONYMS: Record<string, string> = {
   'äggula': 'ägg',
   'äggulor': 'ägg',
   'äggvita': 'ägg',
+  // Rice variants
+  'jasminris': 'ris',
+  'basmatiris': 'ris',
+  'risottoris': 'ris',
+  'långkornigt ris': 'ris',
+  'kokt ris': 'ris',
+  'vitt ris': 'ris',
+  // Tomato variants
+  'krossade tomater': 'krossade tomater',
+  'tomatpuré': 'tomatpuré',
+  'passerade tomater': 'passerade tomater',
+  'cocktailtomater': 'tomat',
+  'körsbärstomater': 'tomat',
+  'plommontomat': 'tomat',
+  // Pasta variants
+  'spagetti': 'pasta',
+  'fusilli': 'pasta',
+  'penne': 'pasta',
+  'tagliatelle': 'pasta',
+  'lasagneplattor': 'lasagneplattor',
 };
 
 // Common Swedish units

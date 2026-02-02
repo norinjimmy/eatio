@@ -59,11 +59,10 @@ export default function Home() {
   
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   
-  // Current week start for meal planning
-  const currentWeekStart = useMemo(() => {
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-    return format(weekStart, 'yyyy-MM-dd');
-  }, []);
+  // Calculate current week start fresh each time - no memoization
+  // so it updates when a new week begins
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const currentWeekStart = format(weekStart, 'yyyy-MM-dd');
   
   // Get top recipes sorted by usage count
   const topRecipes = [...recipes]
@@ -106,7 +105,9 @@ export default function Home() {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   
   // Use shared meals if viewing a shared plan, otherwise use own meals
-  const displayMeals = viewingShare ? sharedMeals : meals;
+  // Filter to only show current week's meals
+  const allDisplayMeals = viewingShare ? sharedMeals : meals;
+  const displayMeals = allDisplayMeals.filter(m => m.weekStart === currentWeekStart);
   
   const todaysMealsList = displayMeals.filter(m => m.day === today);
   const lunch = todaysMealsList.find(m => m.type === 'Lunch');

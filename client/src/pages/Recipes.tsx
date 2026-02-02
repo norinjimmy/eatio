@@ -7,15 +7,39 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Heart, Search, Plus, ChefHat, Trash2, Edit2, ExternalLink, Download, Loader2, Camera, Upload } from "lucide-react";
+import { Heart, Search, Plus, ChefHat, Trash2, Edit2, ExternalLink, Download, Loader2, Camera, Upload, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useShare } from "@/lib/share-context";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 export default function Recipes() {
   const { t } = useTranslation();
   const { recipes, addRecipe, deleteRecipe, toggleFavorite } = useStore();
   const { toast } = useToast();
+  const { viewingShare, setViewingShare } = useShare();
+  
+  // Fetch shared recipes if viewing someone else's plan
+  const { data: sharedRecipes = [] } = useQuery<Recipe[]>({
+    queryKey: ['/api/shares', viewingShare?.id, 'recipes'],
+    queryFn: async () => {
+      if (!viewingShare) return [];
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      const res = await fetch(`/api/shares/${viewingShare.id}/recipes`, { headers });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!viewingShare,
+  });
+  
+  const displayRecipes = viewingShare ? sharedRecipes : recipes;
+  const canEdit = !viewingShare; // Can only edit own recipes
   
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -31,7 +55,7 @@ export default function Recipes() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredRecipes = recipes.filter(r => 
+  const filteredRecipes = displayRecipes.filter(r => 
     r.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -140,11 +164,30 @@ export default function Recipes() {
     <Layout>
       <div className="space-y-6">
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-display font-bold">{t("recipes")}</h2>
-            <Button onClick={() => setIsCreateOpen(true)} className="rounded-full bg-primary hover:bg-primary/90 shadow-md">
-              <Plus size={18} className="mr-1" /> {t("add")}
+          {viewingShare && (
+            <Button
+              variant="ghost"
+              onClick={() => setViewingShare(null)}
+              className="w-fit -ml-2"
+            >
+              <ArrowLeft size={16} className="mr-2" />
+              {t("backToMyPlan")}
             </Button>
+          )}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-display font-bold">{t("recipes")}</h2>
+              {viewingShare && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {viewingShare.ownerName}'s {t("recipes").toLowerCase()}
+                </p>
+              )}
+            </div>
+            {canEdit && (
+              <Button onClick={() => setIsCreateOpen(true)} className="rounded-full bg-primary hover:bg-primary/90 shadow-md">
+                <Plus size={18} className="mr-1" /> {t("add")}
+              </Button>
+            )}
           </div>
 
           <div className="relative">
@@ -169,8 +212,8 @@ export default function Recipes() {
               <RecipeCard 
                 key={recipe.id} 
                 recipe={recipe} 
-                onToggleFav={() => toggleFavorite(recipe.id)}
-                onDelete={() => deleteRecipe(recipe.id)}
+                onToggleFav={canEdit ? () => toggleFavorite(recipe.id) : undefined}
+                onDelete={canEdit ? () => deleteRecipe(recipe.id) : undefined}
               />
             ))}
           </div>
@@ -309,7 +352,7 @@ export default function Recipes() {
   );
 }
 
-function RecipeCard({ recipe, onToggleFav, onDelete }: { recipe: Recipe; onToggleFav: () => void; onDelete: () => void }) {
+function RecipeCard({ recipe, onToggleFav, onDelete }: { recipe: Recipe; onToggleFav?: () => void; onDelete?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -333,15 +376,17 @@ function RecipeCard({ recipe, onToggleFav, onDelete }: { recipe: Recipe; onToggl
             )}
           </div>
         </div>
-        <button 
-          onClick={onToggleFav}
-          className="p-2 -mr-2 -mt-2 text-muted-foreground hover:text-red-500 transition-colors"
-        >
-          <Heart 
-            size={20} 
-            className={cn("transition-all", recipe.isFavorite ? "fill-red-500 text-red-500" : "")} 
-          />
-        </button>
+        {onToggleFav && (
+          <button 
+            onClick={onToggleFav}
+            className="p-2 -mr-2 -mt-2 text-muted-foreground hover:text-red-500 transition-colors"
+          >
+            <Heart 
+              size={20} 
+              className={cn("transition-all", recipe.isFavorite ? "fill-red-500 text-red-500" : "")} 
+            />
+          </button>
+        )}
       </div>
       
       {isOpen && (
@@ -361,8 +406,9 @@ function RecipeCard({ recipe, onToggleFav, onDelete }: { recipe: Recipe; onToggl
             </div>
           )}
           
-          <div className="mt-4 flex justify-end">
-             <Button 
+          {onDelete && (
+            <div className="mt-4 flex justify-end">
+              <Button 
                 variant="destructive" 
                 size="sm" 
                 onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -370,7 +416,8 @@ function RecipeCard({ recipe, onToggleFav, onDelete }: { recipe: Recipe; onToggl
               >
                 Delete
               </Button>
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>

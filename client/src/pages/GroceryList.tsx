@@ -8,7 +8,7 @@ import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, Apple, Mil
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { CATEGORY_NAMES, CATEGORY_ORDER, type GroceryCategory } from "@shared/ingredient-utils";
+import { CATEGORY_NAMES, CATEGORY_ORDER, categorizeIngredient, type GroceryCategory } from "@shared/ingredient-utils";
 import { useShare } from "@/lib/share-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -64,7 +64,13 @@ export default function GroceryList() {
   // Mutation for adding shared grocery items
   const addSharedItemMutation = useMutation({
     mutationFn: async (name: string) => {
-      return apiRequest('POST', `/api/shares/${viewingShare?.id}/grocery`, { name });
+      // Calculate category on client side before sending
+      const category = categorizeIngredient(name);
+      return apiRequest('POST', `/api/shares/${viewingShare?.id}/grocery`, { 
+        name, 
+        isCustom: true,
+        category 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
