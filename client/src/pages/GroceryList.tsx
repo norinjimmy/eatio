@@ -201,7 +201,10 @@ export default function GroceryList() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="rounded-xl">
                   <DropdownMenuItem 
-                    onClick={handleClearAll}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      handleClearAll();
+                    }}
                     className="text-sm text-destructive"
                     data-testid="menu-item-clear-all"
                   >

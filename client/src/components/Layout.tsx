@@ -14,6 +14,9 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex flex-col min-h-screen max-w-full overflow-x-hidden bg-background text-foreground">
+      {/* Safe area spacer - fixed height for Android status bar */}
+      <div className="h-8 bg-background flex-shrink-0" />
+      
       {/* Top Bar for Mobile */}
       <header 
         className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-2 flex items-center justify-between flex-shrink-0"
