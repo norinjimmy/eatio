@@ -233,6 +233,13 @@ const INGREDIENT_SYNONYMS: Record<string, string> = {
   'penne': 'pasta',
   'tagliatelle': 'pasta',
   'lasagneplattor': 'lasagneplattor',
+  // Citrus variants
+  'lime': 'lime',
+  'limejuice': 'limejuice',
+  'färskpressad lime': 'limejuice',
+  'pressad lime': 'limejuice',
+  'limeklyfta': 'lime',
+  'limeklyftor': 'lime',
 };
 
 // Common Swedish units
