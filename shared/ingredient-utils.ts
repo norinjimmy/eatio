@@ -240,6 +240,12 @@ const INGREDIENT_SYNONYMS: Record<string, string> = {
   'pressad lime': 'limejuice',
   'limeklyfta': 'lime',
   'limeklyftor': 'lime',
+  // Soy sauce variants
+  'soja': 'soja',
+  'sojasås': 'soja',
+  'ljus soja': 'soja',
+  'mörk soja': 'soja',
+  'japansk soja': 'soja',
 };
 
 // Common Swedish units

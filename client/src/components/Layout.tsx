@@ -37,7 +37,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
       
-      <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full px-3 py-3 pb-32">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full px-3 pt-16 pb-24">
         <div className="max-w-full overflow-x-hidden">
           {children}
         </div>
