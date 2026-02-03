@@ -53,20 +53,21 @@ const CATEGORIES = [
 ];
 
 export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroceryDialogProps) {
-  const [name, setName] = useState(item?.name || "");
-  const [quantity, setQuantity] = useState(item?.quantity?.toString() || "1");
-  const [unit, setUnit] = useState(item?.unit || "");
-  const [category, setCategory] = useState(item?.category || "other");
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [unit, setUnit] = useState("");
+  const [category, setCategory] = useState("other");
 
-  // Update form when item changes
+  // Reset form when dialog opens with new item
   useEffect(() => {
-    if (item) {
-      setName(item.name);
+    if (open && item) {
+      console.log('EditGroceryDialog: Opening with item:', item);
+      setName(item.name || "");
       setQuantity(item.quantity?.toString() || "1");
       setUnit(item.unit || "");
       setCategory(item.category || "other");
     }
-  }, [item]);
+  }, [open, item]);
 
   const handleSave = () => {
     if (!item) return;

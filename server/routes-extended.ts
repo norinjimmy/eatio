@@ -178,17 +178,15 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    // Parse and format the new values
-    let updateData: any = {};
+    // Simple direct update without re-parsing
+    const updateData: any = {};
     
     if (name !== undefined) {
-      const parsed = parseIngredient(`${quantity || existing.quantity} ${unit || existing.unit || ''} ${name}`);
-      updateData.name = formatIngredient(parsed);
-      updateData.normalizedName = parsed.normalizedName;
+      updateData.name = name;
     }
     
     if (quantity !== undefined) {
-      updateData.quantity = parseInt(quantity) || 1;
+      updateData.quantity = parseFloat(quantity) || 1;
     }
     
     if (unit !== undefined) {
