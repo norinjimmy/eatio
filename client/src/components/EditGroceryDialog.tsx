@@ -17,13 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GroceryItem } from "@/models/GroceryItem";
+import { GroceryItem } from "@/lib/store";
 
 interface EditGroceryDialogProps {
   item: GroceryItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (id: number, data: { name: string; quantity: number; unit: string; category: string }) => void;
+  onSave: (updates: Partial<GroceryItem>) => void;
 }
 
 const UNITS = [
@@ -71,7 +71,7 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
   const handleSave = () => {
     if (!item) return;
     
-    onSave(item.id, {
+    onSave({
       name,
       quantity: parseFloat(quantity) || 1,
       unit,

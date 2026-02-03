@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { supabase } from './supabase';
+import { supabase, supabaseAdmin } from './supabase';
 
 /**
  * Get the effective user ID for data operations.
@@ -72,7 +72,7 @@ export async function getPrimaryUserInfo(userId: string) {
   if (!link) return null;
 
   // Get primary user's email from auth.users
-  const { data: { user }, error } = await supabase.auth.admin.getUserById(link.primary_user_id);
+  const { data: { user }, error } = await supabaseAdmin.auth.admin.getUserById(link.primary_user_id);
   
   if (error || !user) return null;
 
@@ -87,7 +87,7 @@ export async function getPrimaryUserInfo(userId: string) {
  */
 export async function createAccountLink(primaryUserId: string, secondaryEmail: string) {
   // Find the user by email
-  const { data: { users }, error: searchError } = await supabase.auth.admin.listUsers();
+  const { data: { users }, error: searchError } = await supabaseAdmin.auth.admin.listUsers();
   
   if (searchError) {
     throw new Error('Failed to search for user');

@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { GroceryItem } from "@/models/GroceryItem";
+import { GroceryItem } from "@/lib/store";
 import { Trash2 } from "lucide-react";
 
 interface DeleteByRecipeDialogProps {
@@ -17,13 +17,15 @@ interface DeleteByRecipeDialogProps {
 }
 
 export function DeleteByRecipeDialog({ open, onOpenChange, items, onDelete }: DeleteByRecipeDialogProps) {
-  // Group items by source meal
+  // Group items by source meal - split on periods to get unique recipe names
   const grouped = items.reduce((acc, item) => {
-    const source = item.sourceMeal || "Manuellt tillagda";
-    if (!acc[source]) {
-      acc[source] = [];
+    if (!item.sourceMeal) return acc;
+    // Split on period and take first recipe name only
+    const recipeName = item.sourceMeal.split('.')[0].trim();
+    if (!acc[recipeName]) {
+      acc[recipeName] = [];
     }
-    acc[source].push(item);
+    acc[recipeName].push(item);
     return acc;
   }, {} as Record<string, GroceryItem[]>);
 
