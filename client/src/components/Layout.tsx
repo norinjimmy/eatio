@@ -14,10 +14,12 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex flex-col h-screen max-w-full overflow-hidden bg-background text-foreground">
-      {/* Top Bar for Mobile - Fixed position */}
+      {/* Status bar spacer - 32px for Android status bar */}
+      <div className="h-8 bg-background flex-shrink-0" />
+      
+      {/* Top Bar for Mobile - Sticky under status bar */}
       <header 
-        className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-2 flex items-center justify-between"
-        style={{ paddingTop: 'max(8px, env(safe-area-inset-top))' }}
+        className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-2 flex items-center justify-between flex-shrink-0"
       >
         <div className="flex items-center gap-2">
           <img src={eatioLogo} alt="Eatio" className="w-7 h-7 rounded-lg object-cover" />
@@ -38,8 +40,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
       
-      {/* Main content with padding for fixed header and bottom nav */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full px-3 pt-20 pb-24">
+      {/* Main content - extra padding bottom for bottom nav + safe area */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full px-3 py-3 pb-28">
         <div className="max-w-full overflow-x-hidden">
           {children}
         </div>

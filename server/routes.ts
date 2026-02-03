@@ -8,6 +8,7 @@ import OpenAI from "openai";
 import { randomUUID } from "crypto";
 import { isAuthenticated, getUserId, getUserEmail, setupAuthRoutes } from "./supabase-auth";
 import { parseIngredient, isPantryStaple, aggregateIngredients, formatIngredient, categorizeIngredient } from "@shared/ingredient-utils";
+import extendedRoutes from "./routes-extended";
 
 const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -1089,6 +1090,9 @@ Only return the JSON, no other text.`
     await storage.deleteUserData(userId);
     res.status(204).send();
   });
+
+  // Extended routes for linked accounts and enhanced grocery features
+  app.use(extendedRoutes);
 
   // Global error handler for async routes
   app.use((err: any, req: any, res: any, next: any) => {

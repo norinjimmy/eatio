@@ -4,7 +4,9 @@ import { useTranslation } from "@/lib/i18n";
 import { useStore, GroceryItem } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, HelpCircle, ArrowLeft } from "lucide-react";
+import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, HelpCircle, ArrowLeft, Edit } from "lucide-react";
+import EditGroceryDialog from "@/components/EditGroceryDialog";
+import DeleteByRecipeDialog from "@/components/DeleteByRecipeDialog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -33,6 +35,9 @@ export default function GroceryList() {
   const { viewingShare, canEdit: shareCanEdit, exitShareView } = useShare();
   
   const [newItem, setNewItem] = useState("");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
+  const [deleteByRecipeOpen, setDeleteByRecipeOpen] = useState(false);
 
   // Fetch shared grocery list if viewing someone else's plan
   const { data: sharedGroceryItems = [] } = useQuery<GroceryItem[]>({
@@ -87,6 +92,28 @@ export default function GroceryList() {
     },
   });
 
+  // Mutation for editing grocery items
+  const editItemMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<GroceryItem> }) => {
+      return apiRequest('PUT', `/api/grocery/${id}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
+      toast({ title: language === 'sv' ? 'Vara uppdaterad' : 'Item updated' });
+    },
+  });
+
+  // Mutation for deleting by source meal
+  const deleteBySourceMutation = useMutation({
+    mutationFn: async (sourceMeal: string) => {
+      return apiRequest('DELETE', `/api/grocery/by-source/${encodeURIComponent(sourceMeal)}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
+      toast({ title: language === 'sv' ? 'Recept borttaget' : 'Recipe removed' });
+    },
+  });
+
   // Use shared grocery items or own items depending on what we're viewing
   const displayGroceryItems = viewingShare ? sharedGroceryItems : groceryItems;
   const canEdit = viewingShare ? shareCanEdit : true;
@@ -138,6 +165,23 @@ export default function GroceryList() {
     if (!canEdit) return;
     clearAllItems();
     toast({ title: t("itemsCleared") });
+  };
+
+  const handleEditItem = (item: GroceryItem) => {
+    if (!canEdit) return;
+    setSelectedItem(item);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async (updates: Partial<GroceryItem>) => {
+    if (!selectedItem) return;
+    await editItemMutation.mutateAsync({ id: selectedItem.id, updates });
+    setEditDialogOpen(false);
+    setSelectedItem(null);
+  };
+
+  const handleDeleteByRecipe = async (sourceMeal: string) => {
+    await deleteBySourceMutation.mutateAsync(sourceMeal);
   };
   
   // Group items by category
@@ -203,6 +247,17 @@ export default function GroceryList() {
                   <DropdownMenuItem 
                     onSelect={(e) => {
                       e.preventDefault();
+                      setDeleteByRecipeOpen(true);
+                    }}
+                    className="text-sm"
+                    data-testid="menu-item-delete-by-recipe"
+                  >
+                    <Trash2 size={14} className="mr-2" />
+                    {language === 'sv' ? 'Radera per recept' : 'Delete by recipe'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onSelect={(e) => {
+                      e.preventDefault();
                       handleClearAll();
                     }}
                     className="text-sm text-destructive"
@@ -261,6 +316,7 @@ export default function GroceryList() {
                         item={item} 
                         onToggle={() => handleToggle(item.id, item.isBought)}
                         onDelete={() => handleDelete(item.id)}
+                        onEdit={() => handleEditItem(item)}
                         canEdit={canEdit}
                       />
                     ))}
@@ -286,11 +342,24 @@ export default function GroceryList() {
         )}
       </div>
 
+      <EditGroceryDialog
+        item={selectedItem}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSave={handleSaveEdit}
+      />
+
+      <DeleteByRecipeDialog
+        open={deleteByRecipeOpen}
+        onOpenChange={setDeleteByRecipeOpen}
+        items={displayGroceryItems}
+        onDelete={handleDeleteByRecipe}
+      />
     </Layout>
   );
 }
 
-function GroceryListItem({ item, onToggle, onDelete, canEdit }: { item: GroceryItem, onToggle: () => void, onDelete: () => void, canEdit: boolean }) {
+function GroceryListItem({ item, onToggle, onDelete, onEdit, canEdit }: { item: GroceryItem, onToggle: () => void, onDelete: () => void, onEdit: () => void, canEdit: boolean }) {
   return (
     <div 
       className={cn(
@@ -321,15 +390,26 @@ function GroceryListItem({ item, onToggle, onDelete, canEdit }: { item: GroceryI
       </div>
       
       {canEdit && (
-        <Button 
-          variant="ghost"
-          size="icon"
-          onClick={onDelete}
-          className="p-2 text-muted-foreground/30"
-          data-testid={`button-delete-item-${item.id}`}
-        >
-          <Trash2 size={16} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost"
+            size="icon"
+            onClick={onEdit}
+            className="p-2 text-muted-foreground/30 hover:text-primary"
+            data-testid={`button-edit-item-${item.id}`}
+          >
+            <Edit size={16} />
+          </Button>
+          <Button 
+            variant="ghost"
+            size="icon"
+            onClick={onDelete}
+            className="p-2 text-muted-foreground/30"
+            data-testid={`button-delete-item-${item.id}`}
+          >
+            <Trash2 size={16} />
+          </Button>
+        </div>
       )}
     </div>
   );
