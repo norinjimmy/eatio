@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -59,14 +59,14 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
   const [category, setCategory] = useState(item?.category || "other");
 
   // Update form when item changes
-  useState(() => {
+  useEffect(() => {
     if (item) {
       setName(item.name);
       setQuantity(item.quantity?.toString() || "1");
       setUnit(item.unit || "");
       setCategory(item.category || "other");
     }
-  });
+  }, [item]);
 
   const handleSave = () => {
     if (!item) return;

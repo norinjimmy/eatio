@@ -215,7 +215,14 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
     const { sourceMeal } = req.params;
 
     const items = await storage.getGroceryItems(effectiveUserId);
-    const itemsToDelete = items.filter(i => i.sourceMeal === sourceMeal);
+    // Match items where sourceMeal starts with the given recipe name
+    // This handles cases like "Chicken katsu. Thaikyckling" when searching for "Chicken katsu"
+    const itemsToDelete = items.filter(i => {
+      if (!i.sourceMeal) return false;
+      // Check if sourceMeal starts with the search term or matches exactly
+      const recipes = i.sourceMeal.split('.').map(r => r.trim());
+      return recipes.includes(sourceMeal);
+    });
     
     for (const item of itemsToDelete) {
       await storage.deleteGroceryItem(effectiveUserId, item.id);
