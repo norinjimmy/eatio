@@ -98,6 +98,7 @@ export default function GroceryList() {
       return apiRequest('PUT', `/api/grocery/${id}`, updates);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
       queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
       toast({ title: language === 'sv' ? 'Vara uppdaterad' : 'Item updated' });
     },
@@ -109,6 +110,7 @@ export default function GroceryList() {
       return apiRequest('DELETE', `/api/grocery/by-source/${encodeURIComponent(sourceMeal)}`);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
       queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
       toast({ title: language === 'sv' ? 'Recept borttaget' : 'Recipe removed' });
     },
