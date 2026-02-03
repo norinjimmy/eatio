@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { isAuthenticated, getUserId } from './supabase-auth';
 import { storage } from './storage-supabase';
+import { supabaseAdmin } from './supabase';
 import {
   getEffectiveUserId,
   getLinkedAccounts,
@@ -29,18 +30,29 @@ router.get('/api/account/link-status', isAuthenticated, async (req: Request, res
     if (primaryInfo) {
       return res.json({
         isLinked: true,
-        role: 'secondary',
-        primaryUser: primaryInfo,
+        isPrimary: false,
+        linkedTo: primaryInfo,
       });
     }
 
     // Check if user has linked accounts (is primary with secondaries)
     const linkedAccounts = await getLinkedAccounts(userId);
     
+    // Get email addresses for linked users
+    const linkedUsersWithEmail = await Promise.all(
+      linkedAccounts.map(async (link: any) => {
+        const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(link.secondary_user_id);
+        return {
+          id: link.secondary_user_id,
+          email: user?.email || 'Unknown',
+        };
+      })
+    );
+    
     res.json({
       isLinked: linkedAccounts.length > 0,
-      role: 'primary',
-      linkedUsers: linkedAccounts,
+      isPrimary: true,
+      linkedUsers: linkedUsersWithEmail,
     });
   } catch (error) {
     console.error('Error getting link status:', error);
@@ -139,10 +151,19 @@ router.post('/api/account/split/:secondaryUserId', isAuthenticated, async (req: 
     // 4. Copy user settings
     const settings = await storage.getUserSettings(primaryUserId);
     if (settings) {
-      await storage.upsertUserSettings(secondaryUserId, {
-        workDays: settings.workDays,
+      // Parse work_days and breakfast_days if they're strings (from DB)
+      const workDays = typeof settings.workDays === 'string' 
+        ? JSON.parse(settings.workDays) 
+        : settings.workDays;
+      const breakfastDays = typeof settings.breakfastDays === 'string'
+        ? JSON.parse(settings.breakfastDays)
+        : settings.breakfastDays;
+      
+      await storage.upsertUserSettings({
+        userId: secondaryUserId,
+        workDays,
         workShift: settings.workShift,
-        breakfastDays: settings.breakfastDays,
+        breakfastDays,
       });
     }
 
@@ -213,13 +234,13 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
     const { sourceMeal } = req.params;
 
     const items = await storage.getGroceryItems(effectiveUserId);
-    // Match items where sourceMeal starts with the given recipe name
+    // Match items where sourceMeal contains the given recipe name (case-insensitive)
     // This handles cases like "Chicken katsu. Thaikyckling" when searching for "Chicken katsu"
     const itemsToDelete = items.filter(i => {
       if (!i.sourceMeal) return false;
-      // Check if sourceMeal starts with the search term or matches exactly
-      const recipes = i.sourceMeal.split('.').map(r => r.trim());
-      return recipes.includes(sourceMeal);
+      // Split on period and check if any recipe matches (case-insensitive)
+      const recipes = i.sourceMeal.split('.').map(r => r.trim().toLowerCase());
+      return recipes.includes(sourceMeal.toLowerCase());
     });
     
     for (const item of itemsToDelete) {

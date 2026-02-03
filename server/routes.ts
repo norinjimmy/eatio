@@ -397,7 +397,8 @@ export async function registerRoutes(
           const recipe = recipes.find(r => r.id === meal.recipeId);
           if (recipe && recipe.ingredients) {
             for (const ingredient of recipe.ingredients) {
-              allIngredients.push({ ingredient, sourceMeal: meal.name });
+              // Use recipe name as source, not meal name
+              allIngredients.push({ ingredient, sourceMeal: recipe.name });
             }
           }
         }

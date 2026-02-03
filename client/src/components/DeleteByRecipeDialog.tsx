@@ -20,14 +20,17 @@ export function DeleteByRecipeDialog({ open, onOpenChange, items, onDelete }: De
   // Group items by source meal - split on periods to get unique recipe names
   const grouped = items.reduce((acc, item) => {
     if (!item.sourceMeal) return acc;
-    // Split on period and take first recipe name only
-    const recipeName = item.sourceMeal.split('.')[0].trim();
+    // Split on period and take first recipe name only, normalize for grouping
+    const recipeName = item.sourceMeal.split('.')[0].trim().toLowerCase();
     if (!acc[recipeName]) {
-      acc[recipeName] = [];
+      acc[recipeName] = {
+        displayName: item.sourceMeal.split('.')[0].trim(), // Keep original case for display
+        items: []
+      };
     }
-    acc[recipeName].push(item);
+    acc[recipeName].items.push(item);
     return acc;
-  }, {} as Record<string, GroceryItem[]>);
+  }, {} as Record<string, { displayName: string; items: GroceryItem[] }>);
 
   const sources = Object.keys(grouped).sort();
 
@@ -47,13 +50,13 @@ export function DeleteByRecipeDialog({ open, onOpenChange, items, onDelete }: De
               Inga ingredienser från recept
             </p>
           ) : (
-            sources.map((source) => {
-              const sourceItems = grouped[source];
+            sources.map((sourceKey) => {
+              const { displayName, items: sourceItems } = grouped[sourceKey];
               return (
-                <div key={source} className="border rounded-lg p-3">
+                <div key={sourceKey} className="border rounded-lg p-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1">
-                      <h4 className="font-medium text-sm">{source}</h4>
+                      <h4 className="font-medium text-sm">{displayName}</h4>
                       <p className="text-xs text-muted-foreground">
                         {sourceItems.length} ingrediens{sourceItems.length !== 1 ? 'er' : ''}
                       </p>
@@ -62,7 +65,7 @@ export function DeleteByRecipeDialog({ open, onOpenChange, items, onDelete }: De
                       variant="destructive"
                       size="sm"
                       onClick={() => {
-                        onDelete(source);
+                        onDelete(displayName); // Use displayName for backend
                         onOpenChange(false);
                       }}
                       className="flex-shrink-0"
