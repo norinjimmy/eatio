@@ -518,7 +518,8 @@ export function aggregateIngredients(ingredients: ParsedIngredient[]): ParsedIng
       // Preserve any additional properties like sourceMeal
       if ((ing as any).sourceMeal) {
         if ((existing as any).sourceMeal && !(existing as any).sourceMeal.includes((ing as any).sourceMeal)) {
-          (existing as any).sourceMeal += `, ${(ing as any).sourceMeal}`;
+          // Use period separator to match our delete-by-recipe logic
+          (existing as any).sourceMeal += `. ${(ing as any).sourceMeal}`;
         } else if (!(existing as any).sourceMeal) {
           (existing as any).sourceMeal = (ing as any).sourceMeal;
         }

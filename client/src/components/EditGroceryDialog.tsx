@@ -61,11 +61,16 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
   // Reset form when dialog opens with new item
   useEffect(() => {
     if (open && item) {
-      console.log('EditGroceryDialog: Opening with item:', item);
       setName(item.name || "");
       setQuantity(item.quantity?.toString() || "1");
       setUnit(item.unit || "");
       setCategory(item.category || "other");
+    } else if (!open) {
+      // Reset to defaults when closing
+      setName("");
+      setQuantity("1");
+      setUnit("");
+      setCategory("other");
     }
   }, [open, item]);
 

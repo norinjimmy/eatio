@@ -17,18 +17,28 @@ interface DeleteByRecipeDialogProps {
 }
 
 export function DeleteByRecipeDialog({ open, onOpenChange, items, onDelete }: DeleteByRecipeDialogProps) {
-  // Group items by source meal - split on periods to get unique recipe names
+  // Group items by ALL source meals (split on periods for items from multiple recipes)
   const grouped = items.reduce((acc, item) => {
     if (!item.sourceMeal) return acc;
-    // Split on period and take first recipe name only, normalize for grouping
-    const recipeName = item.sourceMeal.split('.')[0].trim().toLowerCase();
-    if (!acc[recipeName]) {
-      acc[recipeName] = {
-        displayName: item.sourceMeal.split('.')[0].trim(), // Keep original case for display
-        items: []
-      };
+    
+    // Split on period to get all recipe names this item belongs to
+    const recipeNames = item.sourceMeal.split('.').map(r => r.trim());
+    
+    // Add this item to ALL recipes it belongs to
+    for (const recipeName of recipeNames) {
+      const normalizedKey = recipeName.toLowerCase();
+      if (!acc[normalizedKey]) {
+        acc[normalizedKey] = {
+          displayName: recipeName, // Keep original case for display
+          items: []
+        };
+      }
+      // Only add if not already present (avoid duplicates)
+      if (!acc[normalizedKey].items.find(i => i.id === item.id)) {
+        acc[normalizedKey].items.push(item);
+      }
     }
-    acc[recipeName].items.push(item);
+    
     return acc;
   }, {} as Record<string, { displayName: string; items: GroceryItem[] }>);
 
