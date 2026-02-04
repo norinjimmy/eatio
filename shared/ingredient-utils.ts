@@ -499,11 +499,19 @@ export function aggregateIngredients(ingredients: ParsedIngredient[]): ParsedIng
   const aggregated = new Map<string, ParsedIngredient>();
   
   // Common Swedish recipe section headers to filter out
-  const sectionHeaders = /^(ingredienser|pajdeg|deg|fyllning|pajfyllning|sås|servering|till servering|garnering|marinad|dressing|topping|kryddning|smör|bakning|bottom|kaka|frosting|glasyr|crème|creme|dekoration)$/i;
+  const sectionHeaders = /^(ingredienser|pajdeg|deg|fyllning|pajfyllning|sås|servering|till servering|garnering|marinad|dressing|topping|kryddning|smör|bakning|bottom|kaka|frosting|glasyr|crème|creme|dekoration|tillbehör)$/i;
+  
+  // Common household items to filter out (things people usually have at home)
+  const commonHouseholdItems = /^(salt|socker|strösocker|peppar|svartpeppar|vitpeppar|smör|olja|olivolja|rapsolja|vatten|mjöl|vetemjöl|bikarbonat|bakpulver|vaniljsocker|ättika|vinäger)$/i;
   
   for (const ing of ingredients) {
     // Skip section headers
     if (sectionHeaders.test(ing.name.trim())) {
+      continue;
+    }
+    
+    // Skip common household items
+    if (commonHouseholdItems.test(ing.normalizedName.trim())) {
       continue;
     }
     
