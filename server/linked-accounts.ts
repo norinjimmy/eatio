@@ -90,6 +90,7 @@ export async function createAccountLink(primaryUserId: string, secondaryEmail: s
   const { data: { users }, error: searchError } = await supabaseAdmin.auth.admin.listUsers();
   
   if (searchError) {
+    console.error('Error searching for user:', searchError);
     throw new Error('Failed to search for user');
   }
 
@@ -104,7 +105,7 @@ export async function createAccountLink(primaryUserId: string, secondaryEmail: s
   }
 
   // Check if secondary user is already linked
-  const { data: existingLink } = await supabase
+  const { data: existingLink } = await supabaseAdmin
     .from('account_links')
     .select('*')
     .eq('secondary_user_id', secondaryUser.id)
@@ -115,7 +116,7 @@ export async function createAccountLink(primaryUserId: string, secondaryEmail: s
   }
 
   // Create the link
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('account_links')
     .insert({
       primary_user_id: primaryUserId,
