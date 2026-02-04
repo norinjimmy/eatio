@@ -298,15 +298,8 @@ export default function WeeklyPlan() {
     
     if (removeIngredients) {
       if (viewingShare) {
-        // Delete ingredients from shared grocery list
-        const itemsToDelete = displayGroceryItems.filter(item => item.sourceMeal === mealToDelete.name && !item.isBought);
-        for (const item of itemsToDelete) {
-          try {
-            await apiRequest('DELETE', `/api/shares/${viewingShare.id}/grocery/${item.id}`);
-          } catch (error) {
-            console.error('Failed to delete grocery item:', error);
-          }
-        }
+        // Delete ingredients from shared grocery list using proper endpoint
+        await apiRequest('DELETE', `/api/shares/${viewingShare.id}/grocery/by-meal/${encodeURIComponent(mealToDelete.name)}`);
         queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare.id, 'grocery'] });
       } else {
         deleteItemsByMeal(mealToDelete.name);
@@ -707,17 +700,11 @@ export default function WeeklyPlan() {
             <Button 
               onClick={async () => {
                 if (viewingShare) {
-                  // Add ingredients to shared grocery list via API
-                  for (const ingredient of pendingIngredients) {
-                    try {
-                      await apiRequest('POST', `/api/shares/${viewingShare.id}/grocery`, { 
-                        name: ingredient,
-                        sourceMeal: pendingMealName 
-                      });
-                    } catch (error) {
-                      console.error('Failed to add ingredient:', error);
-                    }
-                  }
+                  // Add ingredients to shared grocery list via proper API endpoint
+                  await apiRequest('POST', `/api/shares/${viewingShare.id}/grocery/add-ingredients`, { 
+                    ingredients: pendingIngredients,
+                    sourceMeal: pendingMealName 
+                  });
                   queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare.id, 'grocery'] });
                 } else {
                   addIngredientsToGrocery(pendingIngredients, pendingMealName);

@@ -15,6 +15,7 @@ import { useShare } from "@/lib/share-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
+import { format, startOfWeek } from "date-fns";
 
 // Category icons
 const CATEGORY_ICONS: Record<GroceryCategory, React.ReactNode> = {
@@ -113,6 +114,9 @@ export default function GroceryList() {
   // Mutation for deleting by source meal
   const deleteBySourceMutation = useMutation({
     mutationFn: async (sourceMeal: string) => {
+      if (viewingShare) {
+        return apiRequest('DELETE', `/api/shares/${viewingShare.id}/grocery/by-meal/${encodeURIComponent(sourceMeal)}`);
+      }
       return apiRequest('DELETE', `/api/grocery/by-source/${encodeURIComponent(sourceMeal)}`);
     },
     onSuccess: () => {
@@ -156,22 +160,45 @@ export default function GroceryList() {
     }
   };
 
-  const handleRegenerate = () => {
+  const handleRegenerate = async () => {
     if (!canEdit) return;
-    regenerateGroceryList();
+    
+    if (viewingShare) {
+      const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      await apiRequest('POST', `/api/shares/${viewingShare.id}/grocery/regenerate`, { weekStart });
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare.id, 'grocery'] });
+    } else {
+      regenerateGroceryList();
+    }
+    
     const title = language === 'sv' ? "Lista uppdaterad" : "List Updated";
     const desc = language === 'sv' ? "Varor från veckoplan tillagda." : "Items from weekly plan added.";
     toast({ title, description: desc });
   };
 
-  const handleClearBought = () => {
+  const handleClearBought = async () => {
     if (!canEdit) return;
-    clearBoughtItems();
+    
+    if (viewingShare) {
+      const boughtItems = displayGroceryItems.filter(i => i.isBought);
+      for (const item of boughtItems) {
+        await deleteSharedItemMutation.mutateAsync(item.id);
+      }
+    } else {
+      clearBoughtItems();
+    }
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (!canEdit) return;
-    clearAllItems();
+    
+    if (viewingShare) {
+      await apiRequest('DELETE', `/api/shares/${viewingShare.id}/grocery`);
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare.id, 'grocery'] });
+    } else {
+      clearAllItems();
+    }
+    
     toast({ title: t("itemsCleared") });
   };
 

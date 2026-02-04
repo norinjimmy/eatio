@@ -1004,6 +1004,99 @@ Only return the JSON, no other text.`
   });
 
   // Add grocery item to shared plan (edit permission required)
+  // Add parsed ingredients to shared grocery list (proper aggregation and filtering)
+  app.post('/api/shares/:shareId/grocery/add-ingredients', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
+      const shareId = Number(req.params.shareId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        console.error('Share edit permission denied:', error);
+        return res.status(403).json({ message: error });
+      }
+      
+      const { ingredients, sourceMeal } = req.body as { ingredients: string[]; sourceMeal?: string };
+      
+      if (!ingredients || !Array.isArray(ingredients)) {
+        return res.status(400).json({ message: 'ingredients array is required' });
+      }
+      
+      // Filter out pantry staples
+      const filteredIngredients = ingredients.filter(ing => !isPantryStaple(ing));
+      
+      // Parse ingredients
+      const parsedIngredients = filteredIngredients.map(ing => parseIngredient(ing));
+      
+      // Get existing grocery items to check for duplicates BEFORE aggregating
+      const existingItems = await storage.getGroceryItems(share.ownerId);
+      
+      // Separate into existing and new ingredients
+      const toUpdate: Array<{ existing: any; parsed: any }> = [];
+      const toCreate: any[] = [];
+      
+      for (const parsed of parsedIngredients) {
+        const existing = existingItems.find(item => 
+          item.normalizedName?.toLowerCase() === parsed.normalizedName.toLowerCase() &&
+          (item.unit || '').toLowerCase() === (parsed.unit || '').toLowerCase()
+        );
+        
+        if (existing) {
+          toUpdate.push({ existing, parsed });
+        } else {
+          toCreate.push(parsed);
+        }
+      }
+      
+      // Aggregate only the new items to create
+      const aggregated = aggregateIngredients(toCreate);
+      
+      // Create or update grocery items
+      const newItems = [];
+      
+      // Update existing items
+      for (const { existing, parsed } of toUpdate) {
+        const newQuantity = (existing.quantity || 1) + Math.round(parsed.quantity || 1);
+        const updatedSourceMeal = sourceMeal && existing.sourceMeal !== sourceMeal
+          ? `${existing.sourceMeal || ''}, ${sourceMeal}`.replace(/^, /, '')
+          : existing.sourceMeal || sourceMeal || null;
+        
+        const displayName = formatIngredient({ ...parsed, quantity: newQuantity });
+        const updated = await storage.updateGroceryItem(share.ownerId, existing.id, {
+          quantity: newQuantity,
+          sourceMeal: updatedSourceMeal,
+          name: displayName,
+        });
+        newItems.push(updated);
+      }
+      
+      // Create new items from aggregated
+      for (const parsed of aggregated) {
+        const displayName = formatIngredient(parsed);
+        const category = categorizeIngredient(parsed.normalizedName);
+        
+        const item = await storage.createGroceryItem({
+          userId: share.ownerId,
+          name: displayName,
+          normalizedName: parsed.normalizedName,
+          quantity: parsed.quantity || 1,
+          unit: parsed.unit || null,
+          category,
+          isBought: false,
+          isCustom: false,
+          sourceMeal: sourceMeal || null,
+        });
+        newItems.push(item);
+      }
+      
+      res.json(newItems);
+    } catch (err) {
+      console.error('Error adding ingredients to shared list:', err);
+      res.status(500).json({ message: 'Failed to add ingredients' });
+    }
+  });
+
   app.post('/api/shares/:shareId/grocery', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
@@ -1055,6 +1148,131 @@ Only return the JSON, no other text.`
     } catch (err) {
       console.error('❌ [DELETE grocery] Error:', err);
       res.status(500).json({ message: 'Failed to delete item' });
+    }
+  });
+
+  // Delete grocery items by meal from shared plan (edit permission required)
+  app.delete('/api/shares/:shareId/grocery/by-meal/:mealName', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
+      const shareId = Number(req.params.shareId);
+      const mealName = decodeURIComponent(req.params.mealName);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        console.error('[DELETE by-meal] Permission denied:', error);
+        return res.status(403).json({ message: error });
+      }
+      
+      await storage.deleteGroceryItemsByMeal(share.ownerId, mealName);
+      res.status(204).send();
+    } catch (err) {
+      console.error('❌ [DELETE by-meal] Error:', err);
+      res.status(500).json({ message: 'Failed to delete items by meal' });
+    }
+  });
+
+  // Clear all grocery items from shared plan (edit permission required)
+  app.delete('/api/shares/:shareId/grocery', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
+      const shareId = Number(req.params.shareId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        console.error('[DELETE all grocery] Permission denied:', error);
+        return res.status(403).json({ message: error });
+      }
+      
+      await storage.deleteAllGroceryItems(share.ownerId);
+      res.status(204).send();
+    } catch (err) {
+      console.error('❌ [DELETE all grocery] Error:', err);
+      res.status(500).json({ message: 'Failed to clear grocery list' });
+    }
+  });
+
+  // Regenerate grocery list from shared plan meals (edit permission required)
+  app.post('/api/shares/:shareId/grocery/regenerate', isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
+      const shareId = Number(req.params.shareId);
+      
+      const { error, share } = await verifyShareEditPermission(userId, userEmail, shareId);
+      if (error || !share) {
+        console.error('[Regenerate grocery] Permission denied:', error);
+        return res.status(403).json({ message: error });
+      }
+      
+      const { weekStart } = req.body as { weekStart?: string };
+      
+      // Get all meals and recipes for the owner
+      const allMeals = await storage.getMeals(share.ownerId);
+      // Filter meals by weekStart if provided
+      const meals = weekStart 
+        ? allMeals.filter(m => m.weekStart === weekStart)
+        : allMeals;
+      const recipes = await storage.getRecipes(share.ownerId);
+      
+      // Collect all ingredients from meals with linked recipes
+      const allIngredients: { ingredient: string; sourceMeal: string }[] = [];
+      
+      for (const meal of meals) {
+        if (meal.recipeId) {
+          const recipe = recipes.find(r => r.id === meal.recipeId);
+          if (recipe && recipe.ingredients) {
+            for (const ingredient of recipe.ingredients) {
+              // Use recipe name as source, not meal name
+              allIngredients.push({ ingredient, sourceMeal: recipe.name });
+            }
+          }
+        }
+      }
+      
+      // Filter out pantry staples
+      const filteredIngredients = allIngredients.filter(
+        item => !isPantryStaple(item.ingredient)
+      );
+      
+      // Parse all ingredients
+      const parsedIngredients = filteredIngredients.map(item => ({
+        ...parseIngredient(item.ingredient),
+        sourceMeal: item.sourceMeal,
+      }));
+      
+      // Aggregate similar ingredients
+      const aggregated = aggregateIngredients(parsedIngredients);
+      
+      // Clear existing grocery items
+      await storage.deleteAllGroceryItems(share.ownerId);
+      
+      // Create new grocery items with proper categorization
+      const newItems = [];
+      for (const parsed of aggregated) {
+        const displayName = formatIngredient(parsed);
+        const category = categorizeIngredient(parsed.normalizedName);
+        
+        const item = await storage.createGroceryItem({
+          userId: share.ownerId,
+          name: displayName,
+          normalizedName: parsed.normalizedName,
+          quantity: parsed.quantity || 1,
+          unit: parsed.unit || null,
+          category,
+          isBought: false,
+          isCustom: false,
+          sourceMeal: (parsed as any).sourceMeal || null,
+        });
+        newItems.push(item);
+      }
+      
+      res.json(newItems);
+    } catch (err) {
+      console.error('Error regenerating shared grocery list:', err);
+      res.status(500).json({ message: 'Failed to regenerate grocery list' });
     }
   });
 
