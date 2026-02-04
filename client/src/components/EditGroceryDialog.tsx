@@ -133,7 +133,7 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Välj enhet" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white">
                 {UNITS.map((u) => (
                   <SelectItem key={u.value} value={u.value}>
                     {u.label}
@@ -151,7 +151,7 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
               <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Välj kategori" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white">
                 {CATEGORIES.map((c) => (
                   <SelectItem key={c.value} value={c.value}>
                     {c.label}

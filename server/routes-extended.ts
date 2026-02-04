@@ -11,7 +11,7 @@ import {
   createAccountLink,
   removeAccountLink,
 } from './linked-accounts';
-import { parseIngredient, formatIngredient, categorizeIngredient, aggregateIngredients } from '@shared/ingredient-utils';
+import { parseIngredient, formatIngredient, categorizeIngredient, aggregateIngredients } from '../shared/ingredient-utils.js';
 
 const router = Router();
 
@@ -202,20 +202,24 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
     // Simple direct update without re-parsing
     const updateData: any = {};
     
-    if (name !== undefined) {
+    if (name !== undefined && name !== null) {
       updateData.name = name;
     }
     
-    if (quantity !== undefined) {
-      updateData.quantity = parseFloat(quantity) || 1;
+    if (quantity !== undefined && quantity !== null) {
+      updateData.quantity = parseFloat(String(quantity)) || 1;
     }
     
     if (unit !== undefined) {
-      updateData.unit = unit || null;
+      updateData.unit = unit === "" || unit === "none" ? null : unit;
     }
     
-    if (category !== undefined) {
+    if (category !== undefined && category !== null) {
       updateData.category = category;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: 'No valid updates provided' });
     }
 
     const updated = await storage.updateGroceryItem(effectiveUserId, parseInt(id), updateData);
