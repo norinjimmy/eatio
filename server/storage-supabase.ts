@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabaseAdmin } from "./supabase";
 import type { IStorage } from "./storage";
 import type {
   Recipe, InsertRecipe, InsertRecipeWithUser,
@@ -12,7 +12,7 @@ import type {
 export class SupabaseStorage implements IStorage {
   // Recipes
   async getRecipes(userId: string): Promise<Recipe[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('recipes')
       .select('*')
       .eq('user_id', userId);
@@ -32,7 +32,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getRecipe(userId: string, id: number): Promise<Recipe | undefined> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('recipes')
       .select('*')
       .eq('id', id)
@@ -57,7 +57,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createRecipe(insertRecipe: InsertRecipeWithUser): Promise<Recipe> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('recipes')
       .insert({
         user_id: insertRecipe.userId,
@@ -93,7 +93,7 @@ export class SupabaseStorage implements IStorage {
     if (updates.instructions !== undefined) updateData.instructions = updates.instructions;
     if (updates.isFavorite !== undefined) updateData.is_favorite = updates.isFavorite;
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('recipes')
       .update(updateData)
       .eq('id', id)
@@ -116,7 +116,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteRecipe(userId: string, id: number): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('recipes')
       .delete()
       .eq('id', id)
@@ -127,7 +127,7 @@ export class SupabaseStorage implements IStorage {
 
   // Meals
   async getMeals(userId: string): Promise<Meal[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meals')
       .select('*')
       .eq('user_id', userId);
@@ -147,7 +147,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getMeal(userId: string, id: number): Promise<Meal | undefined> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meals')
       .select('*')
       .eq('id', id)
@@ -172,7 +172,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createMeal(insertMeal: InsertMealWithUser): Promise<Meal> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meals')
       .insert({
         user_id: insertMeal.userId,
@@ -209,7 +209,7 @@ export class SupabaseStorage implements IStorage {
     if (updates.recipeId !== undefined) updateData.recipe_id = updates.recipeId;
     if (updates.weekStart !== undefined) updateData.week_start = updates.weekStart;
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meals')
       .update(updateData)
       .eq('id', id)
@@ -232,7 +232,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteMeal(userId: string, id: number): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('meals')
       .delete()
       .eq('id', id)
@@ -242,7 +242,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteAllMeals(userId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('meals')
       .delete()
       .eq('user_id', userId);
@@ -252,7 +252,7 @@ export class SupabaseStorage implements IStorage {
 
   // Grocery
   async getGroceryItems(userId: string): Promise<GroceryItem[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('grocery_items')
       .select('*')
       .eq('user_id', userId);
@@ -274,7 +274,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getGroceryItem(userId: string, id: number): Promise<GroceryItem | undefined> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('grocery_items')
       .select('*')
       .eq('id', id)
@@ -301,7 +301,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async createGroceryItem(insertItem: InsertGroceryItemWithUser): Promise<GroceryItem> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('grocery_items')
       .insert({
         user_id: insertItem.userId,
@@ -344,7 +344,7 @@ export class SupabaseStorage implements IStorage {
     if (updates.isCustom !== undefined) updateData.is_custom = updates.isCustom;
     if (updates.sourceMeal !== undefined) updateData.source_meal = updates.sourceMeal;
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('grocery_items')
       .update(updateData)
       .eq('id', id)
@@ -369,7 +369,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteGroceryItem(userId: string, id: number): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('grocery_items')
       .delete()
       .eq('id', id)
@@ -379,7 +379,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteAllGroceryItems(userId: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('grocery_items')
       .delete()
       .eq('user_id', userId);
@@ -388,7 +388,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteGroceryItemsByMeal(userId: string, mealName: string): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('grocery_items')
       .delete()
       .eq('user_id', userId)
@@ -399,7 +399,7 @@ export class SupabaseStorage implements IStorage {
 
   // Settings
   async getUserSettings(userId: string): Promise<UserSettings | undefined> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_settings')
       .select('*')
       .eq('user_id', userId)
@@ -420,7 +420,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async upsertUserSettings(settings: InsertUserSettings): Promise<UserSettings> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_settings')
       .upsert({
         user_id: settings.userId,
@@ -446,7 +446,7 @@ export class SupabaseStorage implements IStorage {
 
   // Shares
   async createShare(share: InsertMealPlanShare): Promise<MealPlanShare> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meal_plan_shares')
       .insert({
         owner_id: share.ownerId,
@@ -476,7 +476,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getSharesByOwner(ownerId: string): Promise<MealPlanShare[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meal_plan_shares')
       .select('*')
       .eq('owner_id', ownerId);
@@ -497,7 +497,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getSharesForUser(userId: string, userEmail: string): Promise<MealPlanShare[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meal_plan_shares')
       .select('*')
       .eq('status', 'accepted')
@@ -519,7 +519,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getPendingSharesForUser(userEmail: string): Promise<MealPlanShare[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meal_plan_shares')
       .select('*')
       .eq('status', 'pending')
@@ -541,7 +541,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getShareByToken(token: string): Promise<MealPlanShare | undefined> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meal_plan_shares')
       .select('*')
       .eq('share_token', token)
@@ -573,7 +573,7 @@ export class SupabaseStorage implements IStorage {
     if (updates.permission !== undefined) updateData.permission = updates.permission;
     if (updates.status !== undefined) updateData.status = updates.status;
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meal_plan_shares')
       .update(updateData)
       .eq('id', id)
@@ -596,7 +596,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async deleteShare(ownerId: string, id: number): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('meal_plan_shares')
       .delete()
       .eq('id', id)
@@ -606,7 +606,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async acceptShare(token: string, userId: string): Promise<MealPlanShare | undefined> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meal_plan_shares')
       .update({ status: 'accepted', invited_user_id: userId })
       .eq('share_token', token)
@@ -633,7 +633,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async acceptShareById(id: number, userId: string): Promise<MealPlanShare | undefined> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('meal_plan_shares')
       .update({ status: 'accepted', invited_user_id: userId })
       .eq('id', id)
@@ -660,7 +660,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async declineShare(id: number): Promise<void> {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('meal_plan_shares')
       .delete()
       .eq('id', id);
@@ -670,7 +670,7 @@ export class SupabaseStorage implements IStorage {
 
   // Week History
   async getWeekHistory(userId: string): Promise<WeekHistory[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('week_history')
       .select('*')
       .eq('user_id', userId)
@@ -688,7 +688,7 @@ export class SupabaseStorage implements IStorage {
   }
 
   async getWeekHistoryByWeek(userId: string, weekStart: string): Promise<WeekHistory | undefined> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('week_history')
       .select('*')
       .eq('user_id', userId)
@@ -713,7 +713,7 @@ export class SupabaseStorage implements IStorage {
     const existing = await this.getWeekHistoryByWeek(userId, weekStart);
     
     if (existing) {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('week_history')
         .update({ meals: mealsData })
         .eq('id', existing.id)
@@ -731,7 +731,7 @@ export class SupabaseStorage implements IStorage {
       };
     }
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('week_history')
       .insert({
         user_id: userId,
@@ -755,14 +755,14 @@ export class SupabaseStorage implements IStorage {
   // Account
   async deleteUserData(userId: string): Promise<void> {
     // Delete in correct order to respect foreign key constraints
-    await supabase.from('grocery_items').delete().eq('user_id', userId);
-    await supabase.from('meals').delete().eq('user_id', userId);
-    await supabase.from('recipes').delete().eq('user_id', userId);
-    await supabase.from('user_settings').delete().eq('user_id', userId);
-    await supabase.from('week_history').delete().eq('user_id', userId);
+    await supabaseAdmin.from('grocery_items').delete().eq('user_id', userId);
+    await supabaseAdmin.from('meals').delete().eq('user_id', userId);
+    await supabaseAdmin.from('recipes').delete().eq('user_id', userId);
+    await supabaseAdmin.from('user_settings').delete().eq('user_id', userId);
+    await supabaseAdmin.from('week_history').delete().eq('user_id', userId);
     
     // Delete shares where user is owner or invited
-    await supabase.from('meal_plan_shares').delete().or(`owner_id.eq.${userId},invited_user_id.eq.${userId}`);
+    await supabaseAdmin.from('meal_plan_shares').delete().or(`owner_id.eq.${userId},invited_user_id.eq.${userId}`);
   }
 }
 
