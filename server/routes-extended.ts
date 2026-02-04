@@ -277,13 +277,24 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
     
     console.log(`[DELETE by-source] Collected ${allIngredients.length} ingredients total`);
     
-    // Parse all ingredients
-    const parsedIngredients = allIngredients.map(item => ({
-      ...parseIngredient(item.ingredient),
-      sourceMeal: item.sourceMeal,
-    }));
+    // Parse all ingredients with error handling
+    console.log(`[DELETE by-source] Starting to parse ingredients...`);
+    const parsedIngredients = [];
+    for (const item of allIngredients) {
+      try {
+        const parsed = parseIngredient(item.ingredient);
+        parsedIngredients.push({
+          ...parsed,
+          sourceMeal: item.sourceMeal,
+        });
+      } catch (error) {
+        console.error(`[DELETE by-source] Failed to parse ingredient: "${item.ingredient}"`, error);
+      }
+    }
+    console.log(`[DELETE by-source] Successfully parsed ${parsedIngredients.length} ingredients`);
     
     // Aggregate similar ingredients
+    console.log(`[DELETE by-source] Starting aggregation...`);
     const aggregated = aggregateIngredients(parsedIngredients);
     
     console.log(`[DELETE by-source] After aggregation: ${aggregated.length} unique ingredients`);
