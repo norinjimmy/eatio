@@ -17,12 +17,12 @@ interface DeleteByRecipeDialogProps {
 }
 
 export function DeleteByRecipeDialog({ open, onOpenChange, items, onDelete }: DeleteByRecipeDialogProps) {
-  // Group items by ALL source meals (split on periods for items from multiple recipes)
+  // Group items by ALL source meals (split on periods or commas for backwards compatibility)
   const grouped = items.reduce((acc, item) => {
     if (!item.sourceMeal) return acc;
     
-    // Split on period to get all recipe names this item belongs to
-    const recipeNames = item.sourceMeal.split('.').map(r => r.trim());
+    // Split on period OR comma to get all recipe names this item belongs to
+    const recipeNames = item.sourceMeal.split(/[.,]/).map(r => r.trim()).filter(r => r);
     
     // Add this item to ALL recipes it belongs to
     for (const recipeName of recipeNames) {

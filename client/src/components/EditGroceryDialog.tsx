@@ -87,7 +87,10 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
     onOpenChange(false);
   };
 
-  if (!item) return null;
+  // Don't render dialog content if no item is selected
+  if (!item) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

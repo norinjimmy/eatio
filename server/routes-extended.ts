@@ -233,24 +233,60 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
     const effectiveUserId = await getEffectiveUserId(req);
     const { sourceMeal } = req.params;
 
-    const items = await storage.getGroceryItems(effectiveUserId);
-    // Match items where sourceMeal contains the given recipe name (case-insensitive)
-    // This handles cases like "Chicken katsu. Thaikyckling" when searching for "Chicken katsu"
-    const itemsToDelete = items.filter(i => {
-      if (!i.sourceMeal) return false;
-      // Split on period and check if any recipe matches (case-insensitive)
-      const recipes = i.sourceMeal.split('.').map(r => r.trim().toLowerCase());
-      return recipes.includes(sourceMeal.toLowerCase());
-    });
+    // BETTER SOLUTION: Regenerate grocery list WITHOUT this recipe
+    // Get all meals and recipes
+    const allMeals = await storage.getMeals(effectiveUserId);
+    const recipes = await storage.getRecipes(effectiveUserId);
     
-    for (const item of itemsToDelete) {
-      await storage.deleteGroceryItem(effectiveUserId, item.id);
+    // Collect all ingredients from meals EXCEPT the specified recipe
+    const allIngredients: { ingredient: string; sourceMeal: string }[] = [];
+    
+    for (const meal of allMeals) {
+      if (meal.recipeId) {
+        const recipe = recipes.find(r => r.id === meal.recipeId);
+        if (recipe && recipe.ingredients) {
+          // Skip if this is the recipe we want to remove
+          if (recipe.name.toLowerCase() !== sourceMeal.toLowerCase()) {
+            for (const ingredient of recipe.ingredients) {
+              allIngredients.push({ ingredient, sourceMeal: recipe.name });
+            }
+          }
+        }
+      }
+    }
+    
+    // Filter out pantry staples (import from routes.ts logic)
+    const { parseIngredient, aggregateIngredients } = await import('../shared/ingredient-utils.js');
+    
+    // Parse all ingredients
+    const parsedIngredients = allIngredients.map(item => ({
+      ...parseIngredient(item.ingredient),
+      sourceMeal: item.sourceMeal,
+    }));
+    
+    // Aggregate similar ingredients
+    const aggregated = aggregateIngredients(parsedIngredients);
+    
+    // Clear existing grocery list
+    await storage.deleteAllGroceryItems(effectiveUserId);
+    
+    // Add regenerated items
+    for (const ing of aggregated) {
+      const displayText = `${ing.name}${ing.quantity && ing.quantity !== 1 ? ` ${ing.quantity}` : ''}${ing.unit ? ` ${ing.unit}` : ''}`;
+      
+      await storage.addGroceryItem(effectiveUserId, {
+        name: displayText,
+        category: 'other' as any,
+        quantity: ing.quantity,
+        unit: ing.unit,
+        sourceMeal: (ing as any).sourceMeal,
+      });
     }
     
     res.json({ 
       success: true, 
-      deleted: itemsToDelete.length,
-      message: `Deleted ${itemsToDelete.length} items from ${sourceMeal}`,
+      message: `Regenerated grocery list without ${sourceMeal}`,
+      itemsGenerated: aggregated.length,
     });
   } catch (error) {
     console.error('Error deleting items by source:', error);

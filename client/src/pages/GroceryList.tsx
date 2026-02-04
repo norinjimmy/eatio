@@ -245,7 +245,7 @@ export default function GroceryList() {
                     <MoreVertical size={16} />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl">
+                <DropdownMenuContent align="end" className="rounded-xl bg-white">
                   <DropdownMenuItem 
                     onSelect={(e) => {
                       e.preventDefault();
