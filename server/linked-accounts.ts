@@ -9,22 +9,30 @@ import { supabase, supabaseAdmin } from './supabase';
 export async function getEffectiveUserId(req: Request): Promise<string> {
   const currentUserId = req.user?.id;
   
+  console.log('[getEffectiveUserId] Starting with currentUserId:', currentUserId);
+  
   if (!currentUserId) {
     throw new Error('User not authenticated');
   }
 
   try {
     // Check if this user is linked as a secondary user
-    const { data: link } = await supabaseAdmin
+    console.log('[getEffectiveUserId] Checking account_links for secondary_user_id:', currentUserId);
+    const { data: link, error } = await supabaseAdmin
       .from('account_links')
       .select('primary_user_id')
       .eq('secondary_user_id', currentUserId)
       .single();
 
+    console.log('[getEffectiveUserId] Query result - link:', link, 'error:', error);
+
     // If linked, return the primary user's ID, otherwise return own ID
-    return link?.primary_user_id || currentUserId;
+    const effectiveId = link?.primary_user_id || currentUserId;
+    console.log('[getEffectiveUserId] Returning effectiveId:', effectiveId);
+    return effectiveId;
   } catch (error) {
     // If no link found or error, return own ID
+    console.log('[getEffectiveUserId] Catch block - error:', error, '- returning currentUserId:', currentUserId);
     return currentUserId;
   }
 }
