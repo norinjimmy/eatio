@@ -97,9 +97,9 @@ export default function GroceryList() {
     mutationFn: async ({ id, updates }: { id: number; updates: Partial<GroceryItem> }) => {
       return apiRequest('PUT', `/api/grocery/${id}`, updates);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['/api/grocery'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
       toast({ title: language === 'sv' ? 'Vara uppdaterad' : 'Item updated' });
     },
   });

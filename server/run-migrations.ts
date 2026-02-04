@@ -109,7 +109,7 @@ async function runMigrations() {
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
         normalized_name TEXT,
-        quantity INTEGER DEFAULT 1,
+        quantity REAL DEFAULT 1,
         unit TEXT,
         category TEXT DEFAULT 'other',
         is_bought BOOLEAN DEFAULT FALSE NOT NULL,
@@ -181,6 +181,20 @@ async function runMigrations() {
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);`);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_messages_conv_id ON messages(conversation_id);`);
     console.log("✓ Created indexes");
+
+    // Run ALTER TABLE migrations for existing columns
+    console.log("Running column type migrations...");
+    try {
+      await db.execute(sql`ALTER TABLE grocery_items ALTER COLUMN quantity TYPE REAL;`);
+      console.log("✓ Changed quantity column to REAL");
+    } catch (error: any) {
+      // Ignore error if column is already REAL or doesn't exist
+      if (error.code === '42804' || error.message?.includes('already type')) {
+        console.log("✓ Quantity column already REAL (or compatible)");
+      } else {
+        console.warn("⚠️  Could not alter quantity column:", error.message);
+      }
+    }
 
     console.log("=== ALL TABLES CREATED SUCCESSFULLY ===");
   } catch (error) {

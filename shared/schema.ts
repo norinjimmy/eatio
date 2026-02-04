@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -32,7 +32,7 @@ export const groceryItems = sqliteTable("grocery_items", {
   userId: text("user_id").notNull(),
   name: text("name").notNull(),
   normalizedName: text("normalized_name"),
-  quantity: integer("quantity").default(1),
+  quantity: real("quantity").default(1),
   unit: text("unit"),
   category: text("category").default("other"),
   isBought: integer("is_bought", { mode: 'boolean' }).default(false).notNull(),
