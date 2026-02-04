@@ -240,13 +240,16 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
     if ((quantityChanged || unitChanged) && name === undefined) {
       const newQuantity = updateData.quantity ?? existing.quantity;
       const newUnit = updateData.unit !== undefined ? updateData.unit : existing.unit;
-      const normalizedName = existing.normalizedName;
+      const normalizedName = existing.normalizedName || existing.name; // Fallback to original name if no normalizedName
       
       // Reconstruct name with new quantity/unit
       if (newUnit) {
         updateData.name = `${newQuantity} ${newUnit} ${normalizedName}`;
-      } else {
+      } else if (newQuantity !== 1) {
+        // Only add quantity if it's not 1 (e.g., "5 päron" not "1 päron")
         updateData.name = `${newQuantity} ${normalizedName}`;
+      } else {
+        updateData.name = normalizedName;
       }
     }
 
