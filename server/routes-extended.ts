@@ -191,9 +191,14 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
     const { id } = req.params;
     const { name, quantity, unit, category } = req.body;
 
+    console.log(`[PUT /api/grocery/${id}] effectiveUserId: ${effectiveUserId}, looking for id: ${id}`);
+
     // Validate ownership
-    const item = await storage.getGroceryItems(effectiveUserId);
-    const existing = item.find(i => i.id === parseInt(id));
+    const items = await storage.getGroceryItems(effectiveUserId);
+    console.log(`[PUT /api/grocery/${id}] Found ${items.length} items for user`);
+    
+    const existing = items.find(i => i.id === parseInt(id));
+    console.log(`[PUT /api/grocery/${id}] Found existing item:`, existing ? 'YES' : 'NO');
     
     if (!existing) {
       return res.status(404).json({ message: 'Item not found' });
@@ -273,14 +278,22 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
     
     // Add regenerated items
     for (const ing of aggregated) {
-      const displayText = `${ing.name}${ing.quantity && ing.quantity !== 1 ? ` ${ing.quantity}` : ''}${ing.unit ? ` ${ing.unit}` : ''}`;
+      // Get category for this ingredient
+      const category = categorizeIngredient(ing.normalizedName);
       
-      await storage.addGroceryItem(effectiveUserId, {
-        name: displayText,
-        category: 'other' as any,
+      // Format the display name with quantity and unit
+      const displayName = formatIngredient(ing);
+      
+      await storage.createGroceryItem({
+        userId: effectiveUserId,
+        name: displayName,
+        normalizedName: ing.normalizedName,
         quantity: ing.quantity,
-        unit: ing.unit,
-        sourceMeal: (ing as any).sourceMeal,
+        unit: ing.unit || null,
+        category: category,
+        isBought: false,
+        isCustom: false,
+        sourceMeal: (ing as any).sourceMeal || null,
       });
     }
     
