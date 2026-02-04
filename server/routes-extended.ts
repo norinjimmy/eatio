@@ -254,10 +254,31 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
     
     console.log(`[DELETE by-source] Found ${allMeals.length} meals, ${recipes.length} recipes`);
     
+    // Find the week_start for the meal we're deleting to only regenerate that week
+    const mealToDelete = allMeals.find(m => {
+      if (m.recipeId) {
+        const recipe = recipes.find(r => r.id === m.recipeId);
+        return recipe && recipe.name.toLowerCase() === sourceMeal.toLowerCase();
+      }
+      return false;
+    });
+    
+    if (!mealToDelete) {
+      console.log(`[DELETE by-source] No meal found with recipe: ${sourceMeal}`);
+      return res.status(404).json({ message: 'Recipe not found in current meals' });
+    }
+    
+    const currentWeekStart = mealToDelete.weekStart;
+    console.log(`[DELETE by-source] Target week: ${currentWeekStart}`);
+    
+    // Filter meals to only the same week
+    const weekMeals = allMeals.filter(m => m.weekStart === currentWeekStart);
+    console.log(`[DELETE by-source] Found ${weekMeals.length} meals in week ${currentWeekStart}`);
+    
     // Collect all ingredients from meals EXCEPT the specified recipe
     const allIngredients: { ingredient: string; sourceMeal: string }[] = [];
     
-    for (const meal of allMeals) {
+    for (const meal of weekMeals) {
       if (meal.recipeId) {
         const recipe = recipes.find(r => r.id === meal.recipeId);
         if (recipe && recipe.ingredients) {
