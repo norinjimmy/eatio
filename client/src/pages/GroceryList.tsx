@@ -30,7 +30,7 @@ const CATEGORY_ICONS: Record<GroceryCategory, React.ReactNode> = {
 
 export default function GroceryList() {
   const { t, language } = useTranslation();
-  const { groceryItems, addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, clearAllItems, regenerateGroceryList } = useStore();
+  const { addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, clearAllItems, regenerateGroceryList } = useStore();
   const { toast } = useToast();
   const { viewingShare, canEdit: shareCanEdit, exitShareView } = useShare();
   
@@ -38,6 +38,12 @@ export default function GroceryList() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
   const [deleteByRecipeOpen, setDeleteByRecipeOpen] = useState(false);
+
+  // Fetch own grocery list directly (not from store context)
+  const { data: groceryItems = [] } = useQuery<GroceryItem[]>({
+    queryKey: ['/api/grocery'],
+    enabled: !viewingShare, // Only fetch when not viewing a share
+  });
 
   // Fetch shared grocery list if viewing someone else's plan
   const { data: sharedGroceryItems = [] } = useQuery<GroceryItem[]>({
