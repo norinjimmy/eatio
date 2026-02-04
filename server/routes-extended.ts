@@ -214,6 +214,9 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
     let quantityChanged = false;
     let unitChanged = false;
     
+    // Store the original name to compare if it was actually modified
+    const originalDisplayName = existing.name;
+    
     if (name !== undefined && name !== null) {
       updateData.name = name;
     }
@@ -236,8 +239,8 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
       return res.status(400).json({ message: 'No valid updates provided' });
     }
 
-    // If quantity or unit changed but name wasn't explicitly provided, reconstruct the name
-    if ((quantityChanged || unitChanged) && name === undefined) {
+    // If quantity or unit changed, reconstruct the name (unless name was explicitly changed to something different)
+    if ((quantityChanged || unitChanged) && updateData.name === originalDisplayName) {
       const newQuantity = updateData.quantity ?? existing.quantity;
       const newUnit = updateData.unit !== undefined ? updateData.unit : existing.unit;
       const normalizedName = existing.normalizedName || existing.name; // Fallback to original name if no normalizedName
