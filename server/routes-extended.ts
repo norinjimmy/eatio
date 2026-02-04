@@ -194,13 +194,16 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
     console.log(`[PUT /api/grocery/${id}] effectiveUserId: ${effectiveUserId}, looking for id: ${id}`);
 
     // Validate ownership
+    console.log(`[PUT /api/grocery/${id}] About to call getGroceryItems...`);
     const items = await storage.getGroceryItems(effectiveUserId);
     console.log(`[PUT /api/grocery/${id}] Found ${items.length} items for user`);
+    console.log(`[PUT /api/grocery/${id}] Item IDs: ${items.map(i => i.id).join(', ')}`);
     
     const existing = items.find(i => i.id === parseInt(id));
     console.log(`[PUT /api/grocery/${id}] Found existing item:`, existing ? 'YES' : 'NO');
     
     if (!existing) {
+      console.log(`[PUT /api/grocery/${id}] Item not found in user's items`);
       return res.status(404).json({ message: 'Item not found' });
     }
 
@@ -241,11 +244,15 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
   try {
     const effectiveUserId = await getEffectiveUserId(req);
     const { sourceMeal } = req.params;
+    
+    console.log(`[DELETE /api/grocery/by-source/${sourceMeal}] effectiveUserId: ${effectiveUserId}`);
 
     // BETTER SOLUTION: Regenerate grocery list WITHOUT this recipe
     // Get all meals and recipes
     const allMeals = await storage.getMeals(effectiveUserId);
     const recipes = await storage.getRecipes(effectiveUserId);
+    
+    console.log(`[DELETE by-source] Found ${allMeals.length} meals, ${recipes.length} recipes`);
     
     // Collect all ingredients from meals EXCEPT the specified recipe
     const allIngredients: { ingredient: string; sourceMeal: string }[] = [];
@@ -254,15 +261,21 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
       if (meal.recipeId) {
         const recipe = recipes.find(r => r.id === meal.recipeId);
         if (recipe && recipe.ingredients) {
+          console.log(`[DELETE by-source] Checking recipe: ${recipe.name} vs ${sourceMeal}`);
           // Skip if this is the recipe we want to remove
           if (recipe.name.toLowerCase() !== sourceMeal.toLowerCase()) {
+            console.log(`[DELETE by-source] Including recipe: ${recipe.name} (${recipe.ingredients.length} ingredients)`);
             for (const ingredient of recipe.ingredients) {
               allIngredients.push({ ingredient, sourceMeal: recipe.name });
             }
+          } else {
+            console.log(`[DELETE by-source] SKIPPING recipe: ${recipe.name}`);
           }
         }
       }
     }
+    
+    console.log(`[DELETE by-source] Collected ${allIngredients.length} ingredients total`);
     
     // Parse all ingredients
     const parsedIngredients = allIngredients.map(item => ({
@@ -273,10 +286,15 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
     // Aggregate similar ingredients
     const aggregated = aggregateIngredients(parsedIngredients);
     
+    console.log(`[DELETE by-source] After aggregation: ${aggregated.length} unique ingredients`);
+    
     // Clear existing grocery list
+    console.log(`[DELETE by-source] Deleting all existing items...`);
     await storage.deleteAllGroceryItems(effectiveUserId);
+    console.log(`[DELETE by-source] All items deleted`);
     
     // Add regenerated items
+    console.log(`[DELETE by-source] Creating ${aggregated.length} new items...`);
     for (const ing of aggregated) {
       // Get category for this ingredient
       const category = categorizeIngredient(ing.normalizedName);
@@ -296,6 +314,8 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
         sourceMeal: (ing as any).sourceMeal || null,
       });
     }
+    
+    console.log(`[DELETE by-source] Regeneration complete`);
     
     res.json({ 
       success: true, 

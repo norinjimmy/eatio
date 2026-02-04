@@ -252,12 +252,17 @@ export class SupabaseStorage implements IStorage {
 
   // Grocery
   async getGroceryItems(userId: string): Promise<GroceryItem[]> {
+    console.log('[storage.getGroceryItems] Called with userId:', userId);
     const { data, error } = await supabaseAdmin
       .from('grocery_items')
       .select('*')
       .eq('user_id', userId);
     
-    if (error) throw error;
+    console.log('[storage.getGroceryItems] Returned:', data?.length || 0, 'items');
+    if (error) {
+      console.error('[storage.getGroceryItems] Error:', error);
+      throw error;
+    }
     
     return (data || []).map(g => ({
       id: g.id,
