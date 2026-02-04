@@ -15,7 +15,7 @@ export async function getEffectiveUserId(req: Request): Promise<string> {
 
   try {
     // Check if this user is linked as a secondary user
-    const { data: link } = await supabase
+    const { data: link } = await supabaseAdmin
       .from('account_links')
       .select('primary_user_id')
       .eq('secondary_user_id', currentUserId)
