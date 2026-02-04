@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { isAuthenticated, getUserId } from './supabase-auth';
-import { storage } from './storage-supabase';
+import { storage } from './storage';
 import { supabaseAdmin } from './supabase';
 import {
   getEffectiveUserId,
