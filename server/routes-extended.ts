@@ -210,16 +210,22 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
     // Simple direct update without re-parsing
     const updateData: any = {};
     
+    // Track if quantity or unit changed
+    let quantityChanged = false;
+    let unitChanged = false;
+    
     if (name !== undefined && name !== null) {
       updateData.name = name;
     }
     
     if (quantity !== undefined && quantity !== null) {
       updateData.quantity = parseFloat(String(quantity)) || 1;
+      quantityChanged = true;
     }
     
     if (unit !== undefined) {
       updateData.unit = unit === "" || unit === "none" ? null : unit;
+      unitChanged = true;
     }
     
     if (category !== undefined && category !== null) {
@@ -228,6 +234,20 @@ router.put('/api/grocery/:id', isAuthenticated, async (req: Request, res: Respon
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: 'No valid updates provided' });
+    }
+
+    // If quantity or unit changed but name wasn't explicitly provided, reconstruct the name
+    if ((quantityChanged || unitChanged) && name === undefined) {
+      const newQuantity = updateData.quantity ?? existing.quantity;
+      const newUnit = updateData.unit !== undefined ? updateData.unit : existing.unit;
+      const normalizedName = existing.normalizedName;
+      
+      // Reconstruct name with new quantity/unit
+      if (newUnit) {
+        updateData.name = `${newQuantity} ${newUnit} ${normalizedName}`;
+      } else {
+        updateData.name = `${newQuantity} ${normalizedName}`;
+      }
     }
 
     const updated = await storage.updateGroceryItem(effectiveUserId, parseInt(id), updateData);
