@@ -27,7 +27,7 @@ interface EditGroceryDialogProps {
 }
 
 const UNITS = [
-  { value: "", label: "- Ingen -" },
+  { value: "none", label: "- Ingen -" },
   { value: "st", label: "st (styck)" },
   { value: "pkt", label: "pkt (paket)" },
   { value: "kg", label: "kg (kilogram)" },
@@ -55,7 +55,7 @@ const CATEGORIES = [
 export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroceryDialogProps) {
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("1");
-  const [unit, setUnit] = useState("");
+  const [unit, setUnit] = useState("none");
   const [category, setCategory] = useState("other");
 
   // Reset form when dialog opens with new item
@@ -63,13 +63,13 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
     if (open && item) {
       setName(item.name || "");
       setQuantity(item.quantity?.toString() || "1");
-      setUnit(item.unit || "");
+      setUnit(item.unit || "none");
       setCategory(item.category || "other");
     } else if (!open) {
       // Reset to defaults when closing
       setName("");
       setQuantity("1");
-      setUnit("");
+      setUnit("none");
       setCategory("other");
     }
   }, [open, item]);
@@ -80,21 +80,17 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
     onSave({
       name,
       quantity: parseFloat(quantity) || 1,
-      unit,
+      unit: unit === "none" ? "" : unit,
       category,
     });
     
     onOpenChange(false);
   };
 
-  // Don't render dialog content if no item is selected
-  if (!item) {
-    return null;
-  }
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open && !!item} onOpenChange={onOpenChange}>
+      {item && (
+        <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Redigera ingrediens</DialogTitle>
           <DialogDescription>
@@ -175,6 +171,7 @@ export function EditGroceryDialog({ item, open, onOpenChange, onSave }: EditGroc
           </Button>
         </DialogFooter>
       </DialogContent>
+      )}
     </Dialog>
   );
 }

@@ -11,7 +11,7 @@ import {
   createAccountLink,
   removeAccountLink,
 } from './linked-accounts';
-import { parseIngredient, formatIngredient, categorizeIngredient } from '@shared/ingredient-utils';
+import { parseIngredient, formatIngredient, categorizeIngredient, aggregateIngredients } from '@shared/ingredient-utils';
 
 const router = Router();
 
@@ -254,9 +254,6 @@ router.delete('/api/grocery/by-source/:sourceMeal', isAuthenticated, async (req:
         }
       }
     }
-    
-    // Filter out pantry staples (import from routes.ts logic)
-    const { parseIngredient, aggregateIngredients } = await import('../shared/ingredient-utils.js');
     
     // Parse all ingredients
     const parsedIngredients = allIngredients.map(item => ({
