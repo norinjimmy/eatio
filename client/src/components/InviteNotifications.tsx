@@ -13,7 +13,7 @@ export function InviteNotifications() {
 
   const { data: pendingInvites = [] } = useQuery<MealPlanShare[]>({
     queryKey: ['/api/shares/pending'],
-    refetchInterval: 30000,
+    refetchInterval: 2 * 60 * 1000, // 2 minutes instead of 30 seconds
   });
 
   const acceptMutation = useMutation({

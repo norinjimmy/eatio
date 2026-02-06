@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useTranslation } from "@/lib/i18n";
 import { useStore, GroceryItem } from "@/lib/store";
@@ -104,9 +104,9 @@ export default function GroceryList() {
     mutationFn: async ({ id, updates }: { id: number; updates: Partial<GroceryItem> }) => {
       return apiRequest('PUT', `/api/grocery/${id}`, updates);
     },
-    onSuccess: async () => {
-      await queryClient.refetchQueries({ queryKey: ['/api/grocery'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
       toast({ title: language === 'sv' ? 'Vara uppdaterad' : 'Item updated' });
     },
   });
@@ -117,7 +117,7 @@ export default function GroceryList() {
       if (viewingShare) {
         return apiRequest('DELETE', `/api/shares/${viewingShare.id}/grocery/by-meal/${encodeURIComponent(sourceMeal)}`);
       }
-      return apiRequest('DELETE', `/api/grocery/by-source/${encodeURIComponent(sourceMeal)}`);
+      return apiRequest('DELETE', `/api/grocery/by-meal/${encodeURIComponent(sourceMeal)}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
@@ -219,23 +219,27 @@ export default function GroceryList() {
     await deleteBySourceMutation.mutateAsync(sourceMeal);
   };
   
-  // Group items by category
-  const groupedItems = CATEGORY_ORDER.reduce((acc, category) => {
-    const categoryItems = displayGroceryItems.filter(item => 
-      (item.category || 'other') === category
-    );
-    if (categoryItems.length > 0) {
-      // Sort: unbought first, then bought
-      acc[category] = categoryItems.sort((a, b) => {
-        if (a.isBought === b.isBought) return 0;
-        return a.isBought ? 1 : -1;
-      });
-    }
-    return acc;
-  }, {} as Record<GroceryCategory, GroceryItem[]>);
+  // Group items by category - memoized for performance
+  const groupedItems = useMemo(() => {
+    return CATEGORY_ORDER.reduce((acc, category) => {
+      const categoryItems = displayGroceryItems.filter(item => 
+        (item.category || 'other') === category
+      );
+      if (categoryItems.length > 0) {
+        // Sort: unbought first, then bought
+        acc[category] = categoryItems.sort((a, b) => {
+          if (a.isBought === b.isBought) return 0;
+          return a.isBought ? 1 : -1;
+        });
+      }
+      return acc;
+    }, {} as Record<GroceryCategory, GroceryItem[]>);
+  }, [displayGroceryItems]);
   
-  // Collect bought items from all categories
-  const boughtItems = displayGroceryItems.filter(i => i.isBought);
+  // Collect bought items from all categories - memoized for performance
+  const boughtItems = useMemo(() => {
+    return displayGroceryItems.filter(i => i.isBought);
+  }, [displayGroceryItems]);
 
   return (
     <Layout>
@@ -254,7 +258,7 @@ export default function GroceryList() {
             )}
             <h2 className="text-2xl font-display font-bold">
               {t("groceryList")}
-              {viewingShare && <span className="text-sm font-normal text-muted-foreground ml-2">({t("shared")})</span>}
+              {viewingShare && <span className="text-sm font-normal text-muted-foreground ml-2">({viewingShare.ownerName})</span>}
             </h2>
           </div>
           <div className="flex items-center gap-2">

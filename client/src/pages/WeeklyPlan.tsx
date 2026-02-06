@@ -269,6 +269,37 @@ export default function WeeklyPlan() {
     }
   }, [isReadOnly, viewingShare, updateSharedMealMutation, moveMeal, toast, t]);
   
+  const handleReAddIngredients = useCallback((meal: Meal) => {
+    if (isReadOnly) return;
+    
+    // Find the recipe for this meal
+    const recipe = [...displayRecipes, ...recipes].find(r => r.id === meal.recipeId);
+    if (!recipe || !recipe.ingredients || recipe.ingredients.length === 0) {
+      toast({ 
+        title: t("noIngredients"), 
+        description: "This meal has no ingredients to add.",
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    // Filter out pantry staples
+    const filteredIngredients = recipe.ingredients.filter(ing => !isPantryStaple(ing));
+    if (filteredIngredients.length === 0) {
+      toast({ 
+        title: t("noIngredients"), 
+        description: "All ingredients are pantry staples.",
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    // Show confirmation dialog
+    setPendingIngredients(filteredIngredients);
+    setPendingMealName(meal.name);
+    setIsIngredientConfirmOpen(true);
+  }, [isReadOnly, displayRecipes, recipes, toast, t]);
+  
   const handleDeleteMeal = useCallback((meal: Meal) => {
     if (isReadOnly) return; // Safety check for read-only mode
     
@@ -521,6 +552,7 @@ export default function WeeklyPlan() {
                               isDraggable={!isReadOnly}
                               onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
                               onRecipeClick={handleRecipeClick}
+                              onReAddIngredients={isReadOnly ? undefined : handleReAddIngredients}
                             />
                           ))}
                         </div>
@@ -559,6 +591,7 @@ export default function WeeklyPlan() {
                               isDraggable={!isReadOnly}
                               onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
                               onRecipeClick={handleRecipeClick}
+                              onReAddIngredients={isReadOnly ? undefined : handleReAddIngredients}
                             />
                           ))}
                         </div>
@@ -597,6 +630,7 @@ export default function WeeklyPlan() {
                               isDraggable={!isReadOnly}
                               onDelete={isReadOnly ? undefined : () => handleDeleteMeal(meal)}
                               onRecipeClick={handleRecipeClick}
+                              onReAddIngredients={isReadOnly ? undefined : handleReAddIngredients}
                             />
                           ))}
                         </div>
@@ -834,7 +868,7 @@ function DroppableSlot({ id, children, isEmpty }: { id: string; children: React.
 }
 
 // Draggable meal item component - memoized for performance
-const DraggableMealItem = memo(function DraggableMealItem({ meal, hasRecipe, onDelete, isDraggable, onRecipeClick }: { meal: Meal; hasRecipe: boolean; onDelete?: () => void; isDraggable: boolean; onRecipeClick?: (meal: Meal) => void }) {
+const DraggableMealItem = memo(function DraggableMealItem({ meal, hasRecipe, onDelete, isDraggable, onRecipeClick, onReAddIngredients }: { meal: Meal; hasRecipe: boolean; onDelete?: () => void; isDraggable: boolean; onRecipeClick?: (meal: Meal) => void; onReAddIngredients?: (meal: Meal) => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: meal.id,
     disabled: !isDraggable,
@@ -869,16 +903,29 @@ const DraggableMealItem = memo(function DraggableMealItem({ meal, hasRecipe, onD
           </div>
         )}
       </div>
-      {onDelete && (
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-        >
-          <X size={16} />
-        </Button>
-      )}
+      <div className="flex items-center gap-1">
+        {hasRecipe && onReAddIngredients && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={(e) => { e.stopPropagation(); onReAddIngredients(meal); }}
+            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+            title="Add ingredients to grocery list"
+          >
+            <ShoppingCart size={14} />
+          </Button>
+        )}
+        {onDelete && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+          >
+            <X size={16} />
+          </Button>
+        )}
+      </div>
     </div>
   );
 });

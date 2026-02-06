@@ -751,6 +751,7 @@ Only return the JSON, no other text.`
   app.post('/api/shares/accept/:token', isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
       const { token } = req.params;
       
       const share = await storage.getShareByToken(token);
@@ -763,6 +764,28 @@ Only return the JSON, no other text.`
       }
       
       const updated = await storage.acceptShare(token, userId);
+      
+      // Create reciprocal share for bidirectional access
+      // This allows both users to see each other's data
+      try {
+        const reciprocalShare = await storage.createShare({
+          ownerId: userId, // The person accepting becomes the owner of the reciprocal share
+          ownerName: userEmail,
+          invitedEmail: share.ownerName, // Invite the original owner back
+          permission: share.permission, // Use same permission level
+          status: 'pending',
+          shareToken: randomUUID(),
+          createdAt: new Date().toISOString(),
+        });
+        
+        // Auto-accept the reciprocal share for the original owner
+        await storage.acceptShare(reciprocalShare.shareToken, share.ownerId);
+        console.log(`Bidirectional share created: ${userId} <-> ${share.ownerId}`);
+      } catch (reciprocalErr) {
+        // Don't fail the original acceptance if reciprocal creation fails
+        console.error('Failed to create reciprocal share:', reciprocalErr);
+      }
+      
       res.json(updated);
     } catch (err) {
       console.error('Accept share error:', err);
