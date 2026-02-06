@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, X, Utensils, Coffee, GripVertical, ArrowLeft, Users, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, X, Utensils, Coffee, GripVertical, ArrowLeft, Users, Clock, ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
