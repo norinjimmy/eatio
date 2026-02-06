@@ -283,7 +283,8 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              {sharedWithMe.length > 0 && (
+              {/* Hidden: "Delat med mig" section - all data is now automatically merged */}
+              {false && sharedWithMe.length > 0 && (
                 <div>
                   <Label className="text-sm font-medium mb-2 block">{t("sharedWithMe")}</Label>
                   <div className="space-y-2">

@@ -22,11 +22,31 @@ export async function registerRoutes(
   // Setup auth routes
   setupAuthRoutes(app);
 
-  // Recipes
+  // Recipes - includes own recipes + recipes from all accepted shares
   app.get(api.recipes.list.path, isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
-    const recipes = await storage.getRecipes(userId);
-    res.json(recipes);
+    const userEmail = getUserEmail(req);
+    
+    // Get own recipes
+    const ownRecipes = await storage.getRecipes(userId);
+    
+    // Get all accepted shares where this user is the invitee
+    const receivedShares = await storage.getSharesForUser(userId, userEmail);
+    
+    // Get recipes from all share owners
+    const sharedRecipes = await Promise.all(
+      receivedShares.map(share => storage.getRecipes(share.ownerId))
+    );
+    
+    // Merge all recipes (own + shared)
+    const allRecipes = [...ownRecipes, ...sharedRecipes.flat()];
+    
+    // Remove duplicates based on recipe ID (keep first occurrence)
+    const uniqueRecipes = Array.from(
+      new Map(allRecipes.map(r => [r.id, r])).values()
+    );
+    
+    res.json(uniqueRecipes);
   });
 
   app.post(api.recipes.create.path, isAuthenticated, async (req, res) => {
@@ -264,11 +284,31 @@ export async function registerRoutes(
     }
   });
 
-  // Meals
+  // Meals - includes own meals + meals from all accepted shares
   app.get(api.meals.list.path, isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
-    const meals = await storage.getMeals(userId);
-    res.json(meals);
+    const userEmail = getUserEmail(req);
+    
+    // Get own meals
+    const ownMeals = await storage.getMeals(userId);
+    
+    // Get all accepted shares where this user is the invitee
+    const receivedShares = await storage.getSharesForUser(userId, userEmail);
+    
+    // Get meals from all share owners
+    const sharedMeals = await Promise.all(
+      receivedShares.map(share => storage.getMeals(share.ownerId))
+    );
+    
+    // Merge all meals (own + shared)
+    const allMeals = [...ownMeals, ...sharedMeals.flat()];
+    
+    // Remove duplicates based on meal ID (keep first occurrence)
+    const uniqueMeals = Array.from(
+      new Map(allMeals.map(m => [m.id, m])).values()
+    );
+    
+    res.json(uniqueMeals);
   });
 
   app.post(api.meals.create.path, isAuthenticated, async (req, res) => {
@@ -312,11 +352,46 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
-  // Grocery
+  // Grocery - includes own items + items from all accepted shares
   app.get(api.grocery.list.path, isAuthenticated, async (req, res) => {
     const userId = getUserId(req);
-    const items = await storage.getGroceryItems(userId);
-    res.json(items);
+    const userEmail = getUserEmail(req);
+    
+    // Get own grocery items
+    const ownItems = await storage.getGroceryItems(userId);
+    
+    // Get all accepted shares where this user is the invitee
+    const receivedShares = await storage.getSharesForUser(userId, userEmail);
+    
+    // Get grocery items from all share owners
+    const sharedItems = await Promise.all(
+      receivedShares.map(share => storage.getGroceryItems(share.ownerId))
+    );
+    
+    // Merge all items (own + shared)
+    const allItems = [...ownItems, ...sharedItems.flat()];
+    
+    // Aggregate items with same normalized name
+    const aggregatedMap = new Map();
+    for (const item of allItems) {
+      const key = item.normalizedName || item.name.toLowerCase();
+      if (aggregatedMap.has(key)) {
+        const existing = aggregatedMap.get(key);
+        // Merge quantities if both have the same unit
+        if (existing.unit === item.unit && typeof existing.quantity === 'number' && typeof item.quantity === 'number') {
+          existing.quantity += item.quantity;
+        }
+        // Merge source meals
+        if (item.sourceMeal && existing.sourceMeal) {
+          const sources = new Set([...existing.sourceMeal.split(', '), ...item.sourceMeal.split(', ')]);
+          existing.sourceMeal = Array.from(sources).join(', ');
+        }
+      } else {
+        aggregatedMap.set(key, { ...item });
+      }
+    }
+    
+    res.json(Array.from(aggregatedMap.values()));
   });
 
   app.post(api.grocery.create.path, isAuthenticated, async (req, res) => {

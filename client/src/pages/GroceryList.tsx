@@ -33,70 +33,15 @@ export default function GroceryList() {
   const { t, language } = useTranslation();
   const { addGroceryItem, toggleGroceryItem, deleteGroceryItem, clearBoughtItems, clearAllItems, regenerateGroceryList } = useStore();
   const { toast } = useToast();
-  const { viewingShare, canEdit: shareCanEdit, exitShareView } = useShare();
   
   const [newItem, setNewItem] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<GroceryItem | null>(null);
   const [deleteByRecipeOpen, setDeleteByRecipeOpen] = useState(false);
 
-  // Fetch own grocery list directly (not from store context)
+  // Fetch grocery list (now includes own + all shared items automatically)
   const { data: groceryItems = [] } = useQuery<GroceryItem[]>({
     queryKey: ['/api/grocery'],
-    enabled: !viewingShare, // Only fetch when not viewing a share
-  });
-
-  // Fetch shared grocery list if viewing someone else's plan
-  const { data: sharedGroceryItems = [] } = useQuery<GroceryItem[]>({
-    queryKey: ['/api/shares', viewingShare?.id, 'grocery'],
-    queryFn: async () => {
-      if (!viewingShare) return [];
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-      const res = await fetch(`/api/shares/${viewingShare.id}/grocery`, { credentials: 'include', headers });
-      if (!res.ok) throw new Error('Failed to fetch shared grocery list');
-      return res.json();
-    },
-    enabled: !!viewingShare,
-  });
-
-  // Mutation for toggling shared grocery items
-  const toggleSharedItemMutation = useMutation({
-    mutationFn: async ({ itemId, isBought }: { itemId: number; isBought: boolean }) => {
-      return apiRequest('PATCH', `/api/shares/${viewingShare?.id}/grocery/${itemId}`, { isBought });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
-    },
-  });
-
-  // Mutation for adding shared grocery items
-  const addSharedItemMutation = useMutation({
-    mutationFn: async (name: string) => {
-      // Calculate category on client side before sending
-      const category = categorizeIngredient(name);
-      return apiRequest('POST', `/api/shares/${viewingShare?.id}/grocery`, { 
-        name, 
-        isCustom: true,
-        category 
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
-    },
-  });
-
-  // Mutation for deleting shared grocery items
-  const deleteSharedItemMutation = useMutation({
-    mutationFn: async (itemId: number) => {
-      return apiRequest('DELETE', `/api/shares/${viewingShare?.id}/grocery/${itemId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
-    },
   });
 
   // Mutation for editing grocery items
@@ -106,7 +51,6 @@ export default function GroceryList() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
       toast({ title: language === 'sv' ? 'Vara uppdaterad' : 'Item updated' });
     },
   });
@@ -114,62 +58,37 @@ export default function GroceryList() {
   // Mutation for deleting by source meal
   const deleteBySourceMutation = useMutation({
     mutationFn: async (sourceMeal: string) => {
-      if (viewingShare) {
-        return apiRequest('DELETE', `/api/shares/${viewingShare.id}/grocery/by-meal/${encodeURIComponent(sourceMeal)}`);
-      }
       return apiRequest('DELETE', `/api/grocery/by-meal/${encodeURIComponent(sourceMeal)}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare?.id, 'grocery'] });
       toast({ title: language === 'sv' ? 'Recept borttaget' : 'Recipe removed' });
     },
   });
 
-  // Use shared grocery items or own items depending on what we're viewing
-  const displayGroceryItems = viewingShare ? sharedGroceryItems : groceryItems;
-  const canEdit = viewingShare ? shareCanEdit : true;
+  const displayGroceryItems = groceryItems;
+  const canEdit = true;
 
   const handleAdd = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!newItem.trim() || !canEdit) return;
     
-    if (viewingShare) {
-      addSharedItemMutation.mutate(newItem);
-    } else {
-      addGroceryItem(newItem);
-    }
+    addGroceryItem(newItem);
     setNewItem("");
   };
 
   const handleToggle = (itemId: number, currentBought: boolean) => {
-    if (viewingShare) {
-      toggleSharedItemMutation.mutate({ itemId, isBought: !currentBought });
-    } else {
-      toggleGroceryItem(itemId);
-    }
+    toggleGroceryItem(itemId);
   };
 
   const handleDelete = (itemId: number) => {
     if (!canEdit) return;
-    
-    if (viewingShare) {
-      deleteSharedItemMutation.mutate(itemId);
-    } else {
-      deleteGroceryItem(itemId);
-    }
+    deleteGroceryItem(itemId);
   };
 
   const handleRegenerate = async () => {
     if (!canEdit) return;
-    
-    if (viewingShare) {
-      const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-      await apiRequest('POST', `/api/shares/${viewingShare.id}/grocery/regenerate`, { weekStart });
-      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare.id, 'grocery'] });
-    } else {
-      regenerateGroceryList();
-    }
+    regenerateGroceryList();
     
     const title = language === 'sv' ? "Lista uppdaterad" : "List Updated";
     const desc = language === 'sv' ? "Varor från veckoplan tillagda." : "Items from weekly plan added.";
@@ -178,26 +97,12 @@ export default function GroceryList() {
 
   const handleClearBought = async () => {
     if (!canEdit) return;
-    
-    if (viewingShare) {
-      const boughtItems = displayGroceryItems.filter(i => i.isBought);
-      for (const item of boughtItems) {
-        await deleteSharedItemMutation.mutateAsync(item.id);
-      }
-    } else {
-      clearBoughtItems();
-    }
+    clearBoughtItems();
   };
 
   const handleClearAll = async () => {
     if (!canEdit) return;
-    
-    if (viewingShare) {
-      await apiRequest('DELETE', `/api/shares/${viewingShare.id}/grocery`);
-      queryClient.invalidateQueries({ queryKey: ['/api/shares', viewingShare.id, 'grocery'] });
-    } else {
-      clearAllItems();
-    }
+    clearAllItems();
     
     toast({ title: t("itemsCleared") });
   };
@@ -246,19 +151,8 @@ export default function GroceryList() {
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            {viewingShare && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={exitShareView}
-                className="h-8 w-8"
-              >
-                <ArrowLeft size={18} />
-              </Button>
-            )}
             <h2 className="text-2xl font-display font-bold">
               {t("groceryList")}
-              {viewingShare && <span className="text-sm font-normal text-muted-foreground ml-2">({viewingShare.ownerName})</span>}
             </h2>
           </div>
           <div className="flex items-center gap-2">
