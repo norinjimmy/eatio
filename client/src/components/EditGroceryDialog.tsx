@@ -41,12 +41,12 @@ const UNITS = [
 ];
 
 const CATEGORIES = [
-  { value: "produce", label: "Frukt & Grönt" },
+  { value: "vegetables", label: "Frukt & Grönt" },
   { value: "meat", label: "Kött & Fisk" },
   { value: "dairy", label: "Mejeri" },
   { value: "pantry", label: "Skafferi" },
   { value: "frozen", label: "Fryst" },
-  { value: "bakery", label: "Bröd & Bakverk" },
+  { value: "bread", label: "Bröd & Bakverk" },
   { value: "beverages", label: "Drycker" },
   { value: "snacks", label: "Snacks" },
   { value: "other", label: "Övrigt" },

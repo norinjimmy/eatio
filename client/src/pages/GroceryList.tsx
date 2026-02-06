@@ -4,7 +4,7 @@ import { useTranslation } from "@/lib/i18n";
 import { useStore, GroceryItem } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, HelpCircle, ArrowLeft, Edit } from "lucide-react";
+import { Trash2, Plus, RefreshCw, CheckCircle2, Circle, MoreVertical, Apple, Milk, Beef, Snowflake, Croissant, Package, Coffee, Candy, HelpCircle, ArrowLeft, Edit } from "lucide-react";
 import EditGroceryDialog from "@/components/EditGroceryDialog";
 import DeleteByRecipeDialog from "@/components/DeleteByRecipeDialog";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ const CATEGORY_ICONS: Record<GroceryCategory, React.ReactNode> = {
   bread: <Croissant size={16} />,
   pantry: <Package size={16} />,
   beverages: <Coffee size={16} />,
+  snacks: <Candy size={16} />,
   other: <HelpCircle size={16} />,
 };
 

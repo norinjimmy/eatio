@@ -9,6 +9,7 @@ export type GroceryCategory =
   | 'pantry'        // Skafferi
   | 'bread'         // Bröd & bageri
   | 'beverages'     // Drycker
+  | 'snacks'        // Snacks
   | 'other';        // Övrigt
 
 // Swedish category names for display
@@ -20,6 +21,7 @@ export const CATEGORY_NAMES: Record<GroceryCategory, { sv: string; en: string }>
   pantry: { sv: 'Skafferi', en: 'Pantry' },
   bread: { sv: 'Bröd & bageri', en: 'Bread & Bakery' },
   beverages: { sv: 'Drycker', en: 'Beverages' },
+  snacks: { sv: 'Snacks', en: 'Snacks' },
   other: { sv: 'Övrigt', en: 'Other' },
 };
 
@@ -32,6 +34,7 @@ export const CATEGORY_ORDER: GroceryCategory[] = [
   'bread',
   'pantry',
   'beverages',
+  'snacks',
   'other',
 ];
 
@@ -91,16 +94,21 @@ const CATEGORY_KEYWORDS: Record<GroceryCategory, string[]> = {
     'balsamvinäger', 'olivolja', 'rapsolja', 'kokosolja', 'sesamolja',
     'krossade tomater', 'tomatpuré', 'passerade tomater', 'tomatsås',
     'kokosmjölk', 'konserverade', 'konserv', 'kikärtor', 'kidneybönor',
-    'vita bönor', 'linser', 'nötter', 'mandlar', 'valnötter', 'cashewnötter',
-    'jordnötter', 'frön', 'sesamfrön', 'solrosfrön', 'pumpafrön',
-    'honung', 'sirap', 'lönnsirap', 'marmelad', 'sylt', 'nutella',
-    'choklad', 'kakao', 'kakaopulver', 'russin', 'torkad frukt', 'lingon',
+    'vita bönor', 'linser', 'frön', 'sesamfrön', 'solrosfrön', 'pumpafrön',
+    'honung', 'sirap', 'lönnsirap', 'marmelad', 'sylt', 'nutella', 'lingon',
+    'kakaopulver',
   ],
   beverages: [
     'juice', 'apelsinjuice', 'äppeljuice', 'läsk', 'vatten', 'mineralvatten',
     'kaffe', 'te', 'öl', 'vin', 'cider', 'alkoholfritt', 'pastavatten',
-  ],
-  other: [],
+  ],  snacks: [
+    'chips', 'popcorn', 'godis', 'choklad', 'kex', 'torkad frukt',
+    'nötter', 'mandlar', 'cashewnötter', 'jordnötter', 'valnötter', 'snacks',
+    'energibar', 'proteinbar', 'müslibar', 'bars', 'fruktbar',
+    'ostbågar', 'ostpuffar', 'snacks', 'dippmix', 'salta pinnar',
+    'nachos', 'russin', 'kakao', 'hasselnötter', 'pistaschnötter',
+    'studentmat', 'salta jordnötter', 'salta mandlar',
+  ],  other: [],
 };
 
 // Categorize an ingredient based on its name
