@@ -41,14 +41,19 @@ export default function GroceryList() {
   const [deleteByRecipeOpen, setDeleteByRecipeOpen] = useState(false);
 
   // Fetch grocery list (now includes own + all shared items automatically)
-  const { data: groceryItems = [] } = useQuery<GroceryItem[]>({
+  const { data: groceryItems = [], refetch: refetchGrocery } = useQuery<GroceryItem[]>({
     queryKey: ['/api/grocery'],
   });
+
+  // Pull-to-refresh handler
+  const handleRefresh = async () => {
+    await refetchGrocery();
+  };
 
   // Mutation for editing grocery items
   const editItemMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number; updates: Partial<GroceryItem> }) => {
-      return apiRequest('PUT', `/api/grocery/${id}`, updates);
+      return apiRequest('PATCH', `/api/grocery/${id}`, updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
@@ -148,7 +153,7 @@ export default function GroceryList() {
   }, [displayGroceryItems]);
 
   return (
-    <Layout>
+    <Layout onRefresh={handleRefresh}>
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">

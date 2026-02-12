@@ -86,7 +86,7 @@ export default function WeeklyPlan() {
   const { viewingShare, canEdit: shareCanEdit, exitShareView } = useShare();
 
   // Fetch shared plan meals if viewing someone else's plan
-  const { data: sharedMeals = [] } = useQuery<Meal[]>({
+  const { data: sharedMeals = [], refetch: refetchSharedMeals } = useQuery<Meal[]>({
     queryKey: ['/api/shares', viewingShare?.id, 'meals'],
     queryFn: async () => {
       if (!viewingShare) return [];
@@ -103,7 +103,7 @@ export default function WeeklyPlan() {
   });
 
   // Fetch shared plan recipes if viewing someone else's plan
-  const { data: sharedRecipes = [] } = useQuery<Recipe[]>({
+  const { data: sharedRecipes = [], refetch: refetchSharedRecipes } = useQuery<Recipe[]>({
     queryKey: ['/api/shares', viewingShare?.id, 'recipes'],
     queryFn: async () => {
       if (!viewingShare) return [];
@@ -120,7 +120,7 @@ export default function WeeklyPlan() {
   });
 
   // Fetch shared plan grocery items if viewing someone else's plan
-  const { data: sharedGroceryItems = [] } = useQuery<any[]>({
+  const { data: sharedGroceryItems = [], refetch: refetchSharedGrocery } = useQuery<any[]>({
     queryKey: ['/api/shares', viewingShare?.id, 'grocery'],
     queryFn: async () => {
       if (!viewingShare) return [];
@@ -135,6 +135,22 @@ export default function WeeklyPlan() {
     },
     enabled: !!viewingShare,
   });
+
+  // Pull-to-refresh handler
+  const handleRefresh = async () => {
+    if (viewingShare) {
+      await Promise.all([
+        refetchSharedMeals(),
+        refetchSharedRecipes(),
+        refetchSharedGrocery(),
+      ]);
+    } else {
+      // For non-shared view, invalidate all relevant queries
+      await queryClient.invalidateQueries({ queryKey: ['/api/meals'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/recipes'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/grocery'] });
+    }
+  };
 
   // Mutations for shared plan editing
   const createSharedMealMutation = useMutation({
@@ -449,7 +465,7 @@ export default function WeeklyPlan() {
   });
 
   return (
-    <Layout>
+    <Layout onRefresh={handleRefresh}>
       <DndContext 
         sensors={sensors} 
         onDragStart={isReadOnly ? undefined : handleDragStart} 

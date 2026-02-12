@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Heart, Search, Plus, ChefHat, Trash2, Edit2, ExternalLink, Download, Loader2, Camera, Upload, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useShare } from "@/lib/share-context";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -22,7 +22,7 @@ export default function Recipes() {
   const { viewingShare, setViewingShare } = useShare();
   
   // Fetch shared recipes if viewing someone else's plan
-  const { data: sharedRecipes = [] } = useQuery<Recipe[]>({
+  const { data: sharedRecipes = [], refetch: refetchSharedRecipes } = useQuery<Recipe[]>({
     queryKey: ['/api/shares', viewingShare?.id, 'recipes'],
     queryFn: async () => {
       if (!viewingShare) return [];
@@ -40,6 +40,15 @@ export default function Recipes() {
   
   const displayRecipes = viewingShare ? sharedRecipes : recipes;
   const canEdit = !viewingShare; // Can only edit own recipes
+  
+  // Pull-to-refresh handler
+  const handleRefresh = async () => {
+    if (viewingShare) {
+      await refetchSharedRecipes();
+    } else {
+      await queryClient.invalidateQueries({ queryKey: ['/api/recipes'] });
+    }
+  };
   
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -161,7 +170,7 @@ export default function Recipes() {
   };
 
   return (
-    <Layout>
+    <Layout onRefresh={handleRefresh}>
       <div className="space-y-6">
         <div className="flex flex-col gap-4">
           {viewingShare && (

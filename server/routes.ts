@@ -414,8 +414,33 @@ export async function registerRoutes(
   app.patch(api.grocery.update.path, isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
       const id = Number(req.params.id);
       const input = api.grocery.update.input.parse(req.body);
+      
+      // Get the item to check ownership
+      const allItems = await storage.getGroceryItems(userId);
+      const item = allItems.find(i => i.id === id);
+      
+      if (!item) {
+        // Check if item belongs to someone we have a share with
+        const shares = await storage.getSharesForUser(userId, userEmail);
+        let found = false;
+        
+        for (const share of shares) {
+          const sharedItems = await storage.getGroceryItems(share.ownerId);
+          const sharedItem = sharedItems.find(i => i.id === id);
+          if (sharedItem) {
+            // Update using the owner's userId
+            const updated = await storage.updateGroceryItem(share.ownerId, id, input);
+            return res.json(updated);
+          }
+        }
+        
+        return res.status(404).json({ message: "Grocery item not found" });
+      }
+      
+      // Item belongs to current user
       const updated = await storage.updateGroceryItem(userId, id, input);
       res.json(updated);
     } catch (err) {
@@ -430,9 +455,38 @@ export async function registerRoutes(
   });
 
   app.delete(api.grocery.delete.path, isAuthenticated, async (req, res) => {
-    const userId = getUserId(req);
-    await storage.deleteGroceryItem(userId, Number(req.params.id));
-    res.status(204).send();
+    try {
+      const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
+      const id = Number(req.params.id);
+      
+      // Get the item to check ownership
+      const allItems = await storage.getGroceryItems(userId);
+      const item = allItems.find(i => i.id === id);
+      
+      if (!item) {
+        // Check if item belongs to someone we have a share with
+        const shares = await storage.getSharesForUser(userId, userEmail);
+        
+        for (const share of shares) {
+          const sharedItems = await storage.getGroceryItems(share.ownerId);
+          const sharedItem = sharedItems.find(i => i.id === id);
+          if (sharedItem) {
+            // Delete using the owner's userId
+            await storage.deleteGroceryItem(share.ownerId, id);
+            return res.status(204).send();
+          }
+        }
+        
+        return res.status(404).json({ message: "Grocery item not found" });
+      }
+      
+      // Item belongs to current user
+      await storage.deleteGroceryItem(userId, id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete item" });
+    }
   });
 
   // Clear all grocery items
@@ -444,10 +498,24 @@ export async function registerRoutes(
 
   // Delete grocery items by meal
   app.delete('/api/grocery/by-meal/:mealName', isAuthenticated, async (req, res) => {
-    const userId = getUserId(req);
-    const mealName = decodeURIComponent(req.params.mealName);
-    await storage.deleteGroceryItemsByMeal(userId, mealName);
-    res.status(204).send();
+    try {
+      const userId = getUserId(req);
+      const userEmail = getUserEmail(req);
+      const mealName = decodeURIComponent(req.params.mealName);
+      
+      // Delete from own items
+      await storage.deleteGroceryItemsByMeal(userId, mealName);
+      
+      // Also delete from shared users' items (they can manage shared grocery list)
+      const shares = await storage.getSharesForUser(userId, userEmail);
+      for (const share of shares) {
+        await storage.deleteGroceryItemsByMeal(share.ownerId, mealName);
+      }
+      
+      res.status(204).send();
+    } catch (err) {
+      res.status(500).json({ message: "Failed to delete items" });
+    }
   });
 
   // Regenerate grocery list from current meals
