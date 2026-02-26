@@ -1,16 +1,9 @@
 services:
-  # PostgreSQL Database
-  - type: pserv
-    name: eatio-db
-    plan: free
-    env: docker
-    region: frankfurt
-    
   # Web Service (Backend + Frontend)
   - type: web
     name: eatio
+    runtime: node
     plan: free
-    env: node
     region: frankfurt
     buildCommand: npm install && npm run build
     startCommand: npm run db:migrate && npm run start
@@ -30,3 +23,9 @@ services:
       - key: PORT
         value: 10000
     autoDeploy: false
+
+databases:
+  - name: eatio-db
+    plan: free
+    databaseName: eatio
+    user: eatio
